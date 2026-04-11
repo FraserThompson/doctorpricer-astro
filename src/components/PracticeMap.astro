@@ -12,6 +12,61 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 	<div id="map_canvas" class="w-full h-screen z-10"></div>
 </practice-map>
 
+<template id="marker-pill-template">
+	<div class="z-10 cursor-pointer">
+		<div
+			class="inner-pill px-2.5 py-1 text-sm font-bold text-white rounded-full shadow-md border-2 border-white transition-all duration-200"
+		>
+			<span class="price-display"></span>
+		</div>
+	</div>
+</template>
+
+<template id="popup-content-template">
+	<div class="p-1 min-w-[200px]">
+		<h5 class="name-display font-bold text-lg m-0 leading-tight mb-2"></h5>
+
+		<p class="address-wrapper text-sm m-0 mt-1 flex items-start gap-1 text-gray-700">
+			<svg class="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+				></path></svg
+			>
+			<span class="address-display block w-full leading-tight"></span>
+		</p>
+
+		<p class="phone-wrapper text-sm m-0 mt-1.5 flex items-center gap-1 text-gray-700">
+			<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+				></path></svg
+			>
+			<span class="phone-display"></span>
+		</p>
+
+		<p class="website-wrapper text-sm m-0 mt-1.5 flex items-center gap-1 text-[#337ab7] hidden hover:text-[#286090]">
+			<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+				></path></svg
+			>
+			<a class="website-display truncate block w-full hover:underline" target="_blank" rel="noopener noreferrer">Visit Website</a>
+		</p>
+
+		<p class="pho-display text-xs text-gray-500 m-0 mt-2 pt-2 border-t border-gray-100"></p>
+		<p class="enrolling-status text-xs text-red-600 font-bold m-0 mt-1 uppercase tracking-wide hidden">Not Enrolling</p>
+	</div>
+</template>
+
 <script>
 	import mapboxgl from 'mapbox-gl';
 	import { filteredPracticesStore, selectedPracticeId, searchStore } from '../store/appStore';
@@ -24,7 +79,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 
 		// Use a single popup instance for the entire map to guarantee exclusivity
 		private activePopup: mapboxgl.Popup | null = null;
-		private popupHtmlMap: Map<string | number, string> = new Map();
+		private popupNodeMap: Map<string | number, HTMLElement> = new Map();
 
 		connectedCallback() {
 			mapboxgl.accessToken = this.dataset.key;
@@ -54,10 +109,9 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 
 				if (id !== null && this.markersMap.has(id)) {
 					const marker = this.markersMap.get(id);
-					const popupHtml = this.popupHtmlMap.get(id);
+					const popupNode = this.popupNodeMap.get(id); // Get the DOM element
 
-					if (marker && popupHtml && this.activePopup) {
-						// Emphasize the selected marker
+					if (marker && popupNode && this.activePopup) {
 						marker.getElement().classList.remove('z-10');
 						marker.getElement().classList.add('z-20');
 
@@ -66,10 +120,9 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 							innerPill.classList.add('scale-125', 'shadow-xl');
 						}
 
-						// Move the single popup to the new marker and update its content
-						this.activePopup.setLngLat(marker.getLngLat()).setHTML(popupHtml).addTo(this.map);
+						// USE setDOMContent() HERE
+						this.activePopup.setLngLat(marker.getLngLat()).setDOMContent(popupNode).addTo(this.map);
 
-						// Smoothly fly to the selected practice
 						this.map.flyTo({ center: marker.getLngLat(), zoom: 14, speed: 1.2 });
 					}
 				} else if (this.activePopup) {
@@ -125,7 +178,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 			this.markers.forEach((marker) => marker.remove());
 			this.markers = [];
 			this.markersMap.clear();
-			this.popupHtmlMap.clear();
+			this.popupNodeMap.clear();
 
 			if (this.activePopup) this.activePopup.remove();
 
@@ -134,45 +187,53 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 
 			const practiceList = practices[0]?.practices ? practices.flatMap((b) => b.practices) : practices;
 
+			const popupTemplate = document.getElementById('popup-content-template') as HTMLTemplateElement;
+			const markerTemplate = document.getElementById('marker-pill-template') as HTMLTemplateElement;
+
 			practiceList.forEach((practice: any) => {
 				if (!practice.lng || !practice.lat) return;
 
-				const id = `${practice.name}-${practice.lat}-${practice.lng}`;
+				const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
 
-				const popupHtml = `
-          <div class="p-1 min-w-[150px]">
-            <h5 class="font-bold text-lg m-0 leading-tight">${practice.name}</h5>
-            <p class="text-sm m-0 mt-2 flex items-center gap-1 text-gray-700">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-              ${practice.phone}
-            </p>
-            <p class="text-xs text-gray-500 m-0 mt-1">${practice.pho}</p>
-            ${!practice.active ? '<p class="text-xs text-red-600 font-bold m-0 mt-2 uppercase tracking-wide">Not Enrolling</p>' : ''}
-          </div>
-        `;
-				this.popupHtmlMap.set(id, popupHtml);
+				const popupClone = popupTemplate.content.cloneNode(true) as DocumentFragment;
+				const popupNode = popupClone.firstElementChild as HTMLElement;
+
+				(popupNode.querySelector('.name-display') as HTMLElement).textContent = practice.name;
+				(popupNode.querySelector('.address-display') as HTMLElement).textContent = practice.address;
+				(popupNode.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
+				(popupNode.querySelector('.pho-display') as HTMLElement).textContent = practice.pho;
+
+				if (practice.url && practice.url.trim() !== '') {
+					popupNode.querySelector('.website-wrapper')?.classList.remove('hidden');
+					(popupNode.querySelector('.website-display') as HTMLAnchorElement).href = practice.url;
+				}
+
+				if (!practice.active) {
+					popupNode.querySelector('.enrolling-status')?.classList.remove('hidden');
+				}
+
+				this.popupNodeMap.set(uniqueId, popupNode);
+
+				const markerClone = markerTemplate.content.cloneNode(true) as DocumentFragment;
+				const markerNode = markerClone.firstElementChild as HTMLElement;
+				const innerPill = markerNode.querySelector('.inner-pill') as HTMLElement;
+				const priceDisplay = markerNode.querySelector('.price-display') as HTMLElement;
 
 				let displayPrice = `$${Math.round(practice.price)}`;
 				if (practice.price === 1000) displayPrice = 'N/A';
 				if (practice.price === 999) displayPrice = '-';
 
-				const el = document.createElement('div');
-				el.className = 'z-10 cursor-pointer';
-				const bgColor = practice.active ? 'bg-[#28A15D]' : 'bg-gray-500';
-				el.innerHTML = `
-          <div class="px-2.5 py-1 text-sm font-bold text-white rounded-full shadow-md border-2 border-white transition-all duration-200 ${bgColor}">
-            <span>${displayPrice}</span>
-          </div>
-        `;
+				priceDisplay.textContent = displayPrice;
+				innerPill.classList.add(practice.active ? 'bg-[#28A15D]' : 'bg-gray-500');
 
-				const marker = new mapboxgl.Marker(el).setLngLat([practice.lng, practice.lat]).addTo(this.map);
+				const marker = new mapboxgl.Marker(markerNode).setLngLat([practice.lng, practice.lat]).addTo(this.map);
 
-				el.addEventListener('click', (e) => {
-					e.stopPropagation(); // Prevents Mapbox from triggering a map background click
-					selectedPracticeId.set(id);
+				markerNode.addEventListener('click', (e) => {
+					e.stopPropagation();
+					selectedPracticeId.set(uniqueId);
 				});
 
-				this.markersMap.set(id, marker);
+				this.markersMap.set(uniqueId, marker);
 				this.markers.push(marker);
 				bounds.extend([practice.lng, practice.lat]);
 				addedMarkers++;

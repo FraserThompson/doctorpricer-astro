@@ -27,6 +27,7 @@
 				<div>
 					<span id="practice-count" class="font-bold text-[#337ab7] text-lg">0</span>
 					<span class="text-sm">practices</span>
+					<span id="csc-indicator" class="text-sm hidden">(CSC prices)</span>
 				</div>
 			</div>
 
@@ -53,6 +54,52 @@
 	</div>
 </practice-sidebar>
 
+<template id="practice-item-template">
+	<li class="practice-item border-b border-gray-200 p-4 cursor-pointer bg-white hover:bg-gray-50 transition-colors flex">
+		<div class="w-1/4 pr-2 flex flex-col justify-start">
+			<h4 class="price-display text-xl font-bold mt-0 mb-1"></h4>
+			<h5 class="enrolling-status text-sm font-bold mt-0 mb-1 text-red-600 uppercase hidden">Not enrolling</h5>
+			<p class="distance-display text-xs text-gray-500 m-0 font-medium"></p>
+		</div>
+		<div class="w-3/4 pl-2">
+			<h4 class="name-display text-[17px] font-semibold m-0 mb-1 leading-tight text-gray-900"></h4>
+			<p class="address-wrapper text-sm m-0 text-gray-600 flex items-center gap-1">
+				<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+					></path></svg
+				>
+				<span class="address-display truncate block w-full"></span>
+			</p>
+			<p class="phone-wrapper text-sm m-0 text-gray-600 flex items-center gap-1 mt-1">
+				<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+					></path></svg
+				>
+				<span class="phone-display"></span>
+			</p>
+			<p class="website-wrapper text-sm m-0 text-[#337ab7] flex items-center gap-1 mt-1 hidden hover:text-[#286090]">
+				<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+					></path></svg
+				>
+				<a class="website-display truncate block w-full hover:underline" target="_blank" rel="noopener noreferrer">Visit Website</a>
+			</p>
+		</div>
+	</li>
+</template>
+
 <script>
 	import Hammer from 'hammerjs';
 	import { filteredPracticesStore, searchStore, selectedPracticeId } from '../store/appStore';
@@ -63,6 +110,7 @@
 		private closeBtn: HTMLButtonElement | null;
 		private listContainer: HTMLUListElement | null;
 		private countSpan: HTMLSpanElement | null;
+		private cscSpan: HTMLSpanElement | null;
 		private radiusSelect: HTMLSelectElement | null;
 		private enrollingFilter: HTMLInputElement | null;
 		private isOpen: boolean = false;
@@ -74,6 +122,7 @@
 			this.closeBtn = null;
 			this.listContainer = null;
 			this.countSpan = null;
+			this.cscSpan = null;
 			this.radiusSelect = null;
 			this.enrollingFilter = null;
 		}
@@ -84,6 +133,7 @@
 			this.closeBtn = this.querySelector('#sidebar-close');
 			this.listContainer = this.querySelector('#practice-list');
 			this.countSpan = this.querySelector('#practice-count');
+			this.cscSpan = this.querySelector('#csc-indicator');
 			this.radiusSelect = this.querySelector('#radius-select') as HTMLSelectElement | null;
 			this.enrollingFilter = this.querySelector('#enrolling-filter') as HTMLInputElement | null;
 
@@ -108,8 +158,14 @@
 
 			// Store Subscriptions
 			searchStore.subscribe((state) => {
-				if (state && state.radius && state.radius !== '0' && this.radiusSelect) {
+				if (!state) return;
+				if (state.radius && state.radius !== '0' && this.radiusSelect) {
 					this.radiusSelect.value = state.radius;
+				}
+				if (state.csc) {
+					this.cscSpan?.classList.remove('hidden');
+				} else {
+					this.cscSpan?.classList.add('hidden');
 				}
 			});
 
@@ -146,8 +202,11 @@
 			if (!this.listContainer || !this.countSpan) return;
 
 			const buckets = filteredPracticesStore.get() || [];
+			const template = document.getElementById('practice-item-template') as HTMLTemplateElement;
 			this.listContainer.innerHTML = '';
 			let totalCount = 0;
+
+			const fragment = document.createDocumentFragment();
 
 			buckets.forEach((bucket: any) => {
 				if (!bucket.practices || bucket.practices.length === 0) return;
@@ -155,47 +214,52 @@
 				bucket.practices.forEach((practice: any) => {
 					totalCount++;
 
-					const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
+					const clone = template.content.cloneNode(true) as DocumentFragment;
+					const li = clone.querySelector('li') as HTMLLIElement;
 
-					const li = document.createElement('li');
-					li.className = 'practice-item border-b border-gray-200 p-4 cursor-pointer bg-white hover:bg-gray-50 transition-colors flex';
+					const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
 					li.dataset.id = uniqueId;
 
-					let priceHtml = `<h4 class="text-xl font-bold mt-0 mb-1">$${practice.price.toFixed(2)}</h4>`;
-					if (practice.price === 1000) priceHtml = `<h5 class="text-lg font-bold mt-0 mb-1 text-gray-600">No price info</h5>`;
-					if (practice.price === 999) priceHtml = `<h5 class="text-lg font-bold mt-0 mb-1 text-gray-600">Ineligible</h5>`;
+					const priceDisplay = clone.querySelector('.price-display') as HTMLElement;
+					if (practice.price === 1000) {
+						priceDisplay.textContent = 'No price info';
+						priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
+					} else if (practice.price === 999) {
+						priceDisplay.textContent = 'Ineligible';
+						priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
+					} else {
+						priceDisplay.textContent = `$${practice.price.toFixed(2)}`;
+					}
 
-					const activeStatusHtml = !practice.active
-						? `<h5 class="text-sm font-bold mt-0 mb-1 text-red-600 uppercase">Not enrolling</h5>`
-						: '';
+					if (!practice.active) {
+						clone.querySelector('.enrolling-status')?.classList.remove('hidden');
+					}
 
-					li.innerHTML = `
-            <div class="w-1/4 pr-2 flex flex-col justify-start">
-              ${priceHtml}
-              ${activeStatusHtml}
-              <p class="text-xs text-gray-500 m-0 font-medium">${practice.distance.toFixed(1)}km away</p>
-            </div>
-            <div class="w-3/4 pl-2">
-              <h4 class="text-[17px] font-semibold m-0 mb-1 leading-tight text-gray-900">${practice.name}</h4>
-              <p class="text-sm m-0 text-gray-600 flex items-center gap-1">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                <span class="truncate block w-full">${practice.address}</span>
-              </p>
-              <p class="text-sm m-0 text-gray-600 flex items-center gap-1 mt-1">
-                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                ${practice.phone}
-              </p>
-            </div>
-          `;
+					(clone.querySelector('.distance-display') as HTMLElement).textContent = `${practice.distance.toFixed(1)}km away`;
+					(clone.querySelector('.name-display') as HTMLElement).textContent = practice.name;
+					(clone.querySelector('.address-display') as HTMLElement).textContent = practice.address;
+					(clone.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
+
+					const websiteWrapper = clone.querySelector('.website-wrapper') as HTMLElement;
+					const websiteLink = clone.querySelector('.website-display') as HTMLAnchorElement;
+
+					if (practice.url && practice.url.trim() !== '') {
+						websiteWrapper.classList.remove('hidden');
+						websiteLink.href = practice.url;
+						websiteLink.addEventListener('click', (e) => e.stopPropagation());
+					}
 
 					li.addEventListener('click', () => {
 						selectedPracticeId.set(uniqueId);
 						li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 					});
 
-					this.listContainer!.appendChild(li);
+					fragment.appendChild(clone);
 				});
 			});
+
+			this.listContainer.appendChild(fragment);
+			this.countSpan.textContent = totalCount.toString();
 
 			this.countSpan.textContent = totalCount.toString();
 		}

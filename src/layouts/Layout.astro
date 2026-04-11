@@ -1,5 +1,4 @@
 ---
-import HeaderSearch from "../components/HeaderSearch.astro";
 import InfoModal from "../components/InfoModal.astro";
 import "../styles/global.css";
 
@@ -59,7 +58,7 @@ const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
 				</a>
 			</div>
 
-			<HeaderSearch />
+			<slot name="header">
 		</nav>
 
 		<div class="grow relative h-[calc(100vh-50px)]">

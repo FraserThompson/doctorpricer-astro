@@ -12,7 +12,9 @@
     "astro": "astro",
     "backend-deploy": "wrangler deploy",
 		"backend-dev": "wrangler dev",
-    "backend-dev-put": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --local"
+    "backend-dev-put": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --local",
+    "index": "docker exec -it doctorpricer_scraper python index.py",
+    "scrape": "docker exec -it doctorpricer_scraper python scrape.py"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
