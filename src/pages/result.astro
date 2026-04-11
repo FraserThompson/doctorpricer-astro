@@ -1,0 +1,59 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PracticeSidebar from '../components/PracticeSidebar.astro';
+import PracticeMap from '../components/PracticeMap.astro';
+---
+
+<Layout title="DoctorPricer - Loading Results...">
+	<div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+		<h2 class="text-2xl font-bold animate-pulse">Finding the best prices...</h2>
+	</div>
+
+	<div class="flex flex-col md:flex-row h-screen hidden" id="app-content">
+		<aside class="w-full md:w-1/3">
+			<PracticeSidebar />
+		</aside>
+
+		<main class="w-full md:w-2/3">
+			<PracticeMap />
+		</main>
+	</div>
+</Layout>
+
+<script>
+	import { initializeSearch } from '../services/search';
+	import { fetchPractices } from '../services/practices';
+
+	// This runs in the user's browser as soon as the page loads.
+	async function resolveRoute() {
+		const params = new URLSearchParams(window.location.search);
+		const lat = params.get('lat');
+		const lng = params.get('lng');
+		const age = params.get('age');
+		const csc = params.get('csc') || '0';
+		const address = params.get('address') || '';
+		const onlyEnrolling = params.get('active') || '0';
+		const displayAddress = params.get('displayAddress') || '';
+
+		if (!lat || !lng || !age || isNaN(Number(lat)) || isNaN(Number(lng)) || isNaN(Number(age))) {
+			console.error('Invalid URL parameters');
+			return;
+		}
+
+		try {
+			await initializeSearch(lat, lng, Number(age), csc === '1', address, displayAddress, onlyEnrolling === '1');
+			await fetchPractices(Number(lat), Number(lng), Number(age), Number(csc), Number(onlyEnrolling));
+
+			if (displayAddress) {
+				document.title = `DoctorPricer - ${displayAddress}`;
+			}
+
+			document.getElementById('loading-overlay')?.classList.add('hidden');
+			document.getElementById('app-content')?.classList.remove('hidden');
+		} catch (error) {
+			console.error('Failed to load data:', error);
+		}
+	}
+
+	resolveRoute();
+</script>

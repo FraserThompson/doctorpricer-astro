@@ -1,0 +1,65 @@
+---
+export interface Props {
+	id: string;
+	title: string;
+}
+const { id, title } = Astro.props;
+---
+
+<dialog
+	id={id}
+	class="backdrop:bg-black/50 p-6 rounded-lg shadow-xl w-full max-w-2xl border-0 m-auto"
+>
+	<div class="flex justify-between items-center border-b pb-4 mb-4">
+		<h2 class="text-2xl font-bold text-gray-800">{title}</h2>
+		<button
+			class="close-btn text-gray-500 hover:text-red-500 transition-colors cursor-pointer"
+			aria-label="Close modal"
+		>
+			<svg
+				class="w-6 h-6"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M6 18L18 6M6 6l12 12"></path>
+			</svg>
+		</button>
+	</div>
+
+	<div class="modal-body overflow-y-auto max-h-[70vh]">
+		<slot />
+	</div>
+</dialog>
+
+<script>
+	document.querySelectorAll("dialog").forEach((dialog) => {
+		const closeBtn = dialog.querySelectorAll(".close-btn");
+
+		closeBtn?.forEach((button) =>
+			button.addEventListener("click", () => dialog.close()),
+		);
+
+		document
+			.querySelectorAll(`.dialog-open[data-dialog='${dialog.id}']`)
+			.forEach((button) => {
+				button?.addEventListener("click", () => dialog.showModal());
+			});
+
+		dialog.addEventListener("click", (e) => {
+			const dialogDimensions = dialog.getBoundingClientRect();
+			if (
+				e.clientX < dialogDimensions.left ||
+				e.clientX > dialogDimensions.right ||
+				e.clientY < dialogDimensions.top ||
+				e.clientY > dialogDimensions.bottom
+			) {
+				dialog.close();
+			}
+		});
+	});
+</script>

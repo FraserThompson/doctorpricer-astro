@@ -1,0 +1,252 @@
+---
+// PracticeSidebar.astro
+---
+
+<practice-sidebar class="contents">
+	<button
+		id="sidebar-toggle"
+		class="md:hidden fixed top-15 left-4 z-30 p-2.5 bg-white rounded-lg shadow-lg text-gray-700 hover:text-[#337ab7] transition-colors"
+		aria-label="Toggle practice list"
+	>
+		<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+		</svg>
+	</button>
+
+	<div
+		id="sidebar-panel"
+		class="fixed inset-0 top-12 md:top-0 w-full h-full bg-white shadow-xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col md:relative md:translate-x-0 md:w-full md:z-10"
+	>
+		<div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center shrink-0 z-20">
+			<div class="text-gray-700 font-medium flex items-center gap-2">
+				<button id="sidebar-close" class="md:hidden p-1 mr-2 text-gray-500 hover:text-gray-800">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg
+					>
+				</button>
+				<div>
+					<span id="practice-count" class="font-bold text-[#337ab7] text-lg">0</span>
+					<span class="text-sm">practices</span>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center justify-end gap-2">
+				<div class="flex items-center space-x-1">
+					<input type="checkbox" id="enrolling-filter" name="enrolling-filter" class="w-4 h-4 text-[#337ab7]" />
+					<label for="enrolling-filter" class="text-sm text-gray-600 whitespace-nowrap">Enrolling</label>
+				</div>
+				<label for="radius-select" class="text-sm text-gray-500 sr-only">Distance</label>
+				<select
+					id="radius-select"
+					class="bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-2 focus:ring-[#337ab7] focus:border-[#337ab7] block py-1.5 px-2 transition-colors cursor-pointer shadow-sm"
+				>
+					<option value="2000" selected>2km</option>
+					<option value="5000">5km</option>
+					<option value="10000">10km</option>
+					<option value="30000">30km</option>
+					<option value="60000">60km</option>
+				</select>
+			</div>
+		</div>
+
+		<ul id="practice-list" class="overflow-y-auto h-full flex-1"></ul>
+	</div>
+</practice-sidebar>
+
+<script>
+	import Hammer from 'hammerjs';
+	import { filteredPracticesStore, searchStore, selectedPracticeId } from '../store/appStore';
+
+	class PracticeSidebar extends HTMLElement {
+		private panel: HTMLDivElement | null;
+		private toggleBtn: HTMLButtonElement | null;
+		private closeBtn: HTMLButtonElement | null;
+		private listContainer: HTMLUListElement | null;
+		private countSpan: HTMLSpanElement | null;
+		private radiusSelect: HTMLSelectElement | null;
+		private enrollingFilter: HTMLInputElement | null;
+		private isOpen: boolean = false;
+
+		constructor() {
+			super();
+			this.panel = null;
+			this.toggleBtn = null;
+			this.closeBtn = null;
+			this.listContainer = null;
+			this.countSpan = null;
+			this.radiusSelect = null;
+			this.enrollingFilter = null;
+		}
+
+		connectedCallback() {
+			this.panel = this.querySelector('#sidebar-panel');
+			this.toggleBtn = this.querySelector('#sidebar-toggle');
+			this.closeBtn = this.querySelector('#sidebar-close');
+			this.listContainer = this.querySelector('#practice-list');
+			this.countSpan = this.querySelector('#practice-count');
+			this.radiusSelect = this.querySelector('#radius-select') as HTMLSelectElement | null;
+			this.enrollingFilter = this.querySelector('#enrolling-filter') as HTMLInputElement | null;
+
+			// Mobile Menu Toggle Logic
+			this.toggleBtn?.addEventListener('click', () => this.openSidebar());
+			this.closeBtn?.addEventListener('click', () => this.closeSidebar());
+
+			// Filter Logic
+			this.enrollingFilter?.addEventListener('click', (e) => {
+				const target = e.target as HTMLInputElement;
+				const currentSearch = searchStore.get();
+				if (!currentSearch) return;
+				searchStore.set({ ...currentSearch, onlyEnrolling: target.checked });
+			});
+
+			this.radiusSelect?.addEventListener('change', (e) => {
+				const target = e.target as HTMLSelectElement;
+				const currentSearch = searchStore.get();
+				if (!currentSearch) return;
+				searchStore.set({ ...currentSearch, radius: target.value });
+			});
+
+			// Store Subscriptions
+			searchStore.subscribe((state) => {
+				if (state && state.radius && state.radius !== '0' && this.radiusSelect) {
+					this.radiusSelect.value = state.radius;
+				}
+			});
+
+			filteredPracticesStore.subscribe(() => {
+				this.renderList();
+			});
+
+			selectedPracticeId.subscribe((id) => {
+				this.highlightSelected(id);
+				// Automatically hide sidebar on mobile when a practice is selected so they can see the map
+				if (id && this.isOpen && window.innerWidth < 768) {
+					this.closeSidebar();
+				}
+			});
+
+			this.initHammer();
+		}
+
+		private openSidebar() {
+			if (!this.panel) return;
+			this.isOpen = true;
+			this.panel.classList.remove('-translate-x-full');
+			this.panel.classList.add('translate-x-0');
+		}
+
+		private closeSidebar() {
+			if (!this.panel) return;
+			this.isOpen = false;
+			this.panel.classList.remove('translate-x-0');
+			this.panel.classList.add('-translate-x-full');
+		}
+
+		private renderList() {
+			if (!this.listContainer || !this.countSpan) return;
+
+			const buckets = filteredPracticesStore.get() || [];
+			this.listContainer.innerHTML = '';
+			let totalCount = 0;
+
+			buckets.forEach((bucket: any) => {
+				if (!bucket.practices || bucket.practices.length === 0) return;
+
+				bucket.practices.forEach((practice: any) => {
+					totalCount++;
+
+					const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
+
+					const li = document.createElement('li');
+					li.className = 'practice-item border-b border-gray-200 p-4 cursor-pointer bg-white hover:bg-gray-50 transition-colors flex';
+					li.dataset.id = uniqueId;
+
+					let priceHtml = `<h4 class="text-xl font-bold mt-0 mb-1">$${practice.price.toFixed(2)}</h4>`;
+					if (practice.price === 1000) priceHtml = `<h5 class="text-lg font-bold mt-0 mb-1 text-gray-600">No price info</h5>`;
+					if (practice.price === 999) priceHtml = `<h5 class="text-lg font-bold mt-0 mb-1 text-gray-600">Ineligible</h5>`;
+
+					const activeStatusHtml = !practice.active
+						? `<h5 class="text-sm font-bold mt-0 mb-1 text-red-600 uppercase">Not enrolling</h5>`
+						: '';
+
+					li.innerHTML = `
+            <div class="w-1/4 pr-2 flex flex-col justify-start">
+              ${priceHtml}
+              ${activeStatusHtml}
+              <p class="text-xs text-gray-500 m-0 font-medium">${practice.distance.toFixed(1)}km away</p>
+            </div>
+            <div class="w-3/4 pl-2">
+              <h4 class="text-[17px] font-semibold m-0 mb-1 leading-tight text-gray-900">${practice.name}</h4>
+              <p class="text-sm m-0 text-gray-600 flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <span class="truncate block w-full">${practice.address}</span>
+              </p>
+              <p class="text-sm m-0 text-gray-600 flex items-center gap-1 mt-1">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                ${practice.phone}
+              </p>
+            </div>
+          `;
+
+					li.addEventListener('click', () => {
+						selectedPracticeId.set(uniqueId);
+						li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+					});
+
+					this.listContainer!.appendChild(li);
+				});
+			});
+
+			this.countSpan.textContent = totalCount.toString();
+		}
+
+		private highlightSelected(id: string | null) {
+			if (!id) return;
+
+			this.querySelectorAll('.practice-item').forEach((el) => {
+				el.classList.remove('bg-[#337ab7]', 'text-white', 'hover:bg-[#286090]');
+				el.classList.add('bg-white', 'hover:bg-gray-50');
+				el.querySelectorAll('p').forEach((p) => {
+					p.classList.remove('text-white', 'text-gray-200');
+					p.classList.add('text-gray-600', 'text-gray-500');
+				});
+				el.querySelectorAll('h4, h5').forEach((h) => {
+					h.classList.remove('text-white');
+				});
+			});
+
+			const selectedEl = this.querySelector(`[data-id="${id}"]`);
+			if (selectedEl) {
+				selectedEl.classList.remove('bg-white', 'hover:bg-gray-50');
+				selectedEl.classList.add('bg-[#337ab7]', 'text-white', 'hover:bg-[#286090]');
+
+				selectedEl.querySelectorAll('p').forEach((p) => {
+					p.classList.remove('text-gray-600', 'text-gray-500');
+					p.classList.add('text-white', 'text-gray-200');
+				});
+				selectedEl.querySelectorAll('h4, h5').forEach((h) => {
+					if (!h.classList.contains('text-red-600')) {
+						h.classList.add('text-white');
+					}
+				});
+			}
+		}
+
+		private initHammer() {
+			if (!this.panel) return;
+
+			// Bind Hammer to the sliding panel itself
+			const mc = new Hammer(this.panel);
+
+			// Detect fast swipes to the left
+			mc.on('swipeleft', () => {
+				if (window.innerWidth < 768) {
+					// Only allow swiping it closed on mobile
+					this.closeSidebar();
+				}
+			});
+		}
+	}
+
+	customElements.define('practice-sidebar', PracticeSidebar);
+</script>

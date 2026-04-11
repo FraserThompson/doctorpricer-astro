@@ -1,0 +1,88 @@
+---
+import HeaderSearch from "../components/HeaderSearch.astro";
+import InfoModal from "../components/InfoModal.astro";
+import "../styles/global.css";
+
+export interface Props {
+	title?: string;
+	description?: string;
+}
+const { title = "DoctorPricer", description = "..." } = Astro.props;
+const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		/>
+		<title>{title}</title>
+		<script
+			type="text/javascript"
+			src=`https://maps.googleapis.com/maps/api/js?libraries=geometry,places&key=${GOOGLE_API_KEY}`
+			async
+			defer></script>
+	</head>
+	<body
+		class="bg-[#f8f8f8] text-gray-800 font-sans h-screen flex flex-col m-0 p-0 overflow-hidden"
+	>
+		<nav
+			class="bg-[#0089CC] text-white h-12 flex items-center relative z-50 shadow-sm w-full shrink-0 px-4 justify-between"
+		>
+			<div class="flex items-center space-x-2">
+				<button
+					data-dialog="info"
+					class="dialog-open text-white hover:text-[#c1ffdc] transition-colors p-1"
+					title="About DoctorPricer"
+				>
+					<svg
+						class="w-6 h-6"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						></path></svg
+					>
+				</button>
+				<a
+					href="/"
+					class="text-white text-[20px] md:text-[24px] font-normal hover:text-white truncate"
+				>
+					DoctorPricer
+				</a>
+			</div>
+
+			<HeaderSearch />
+		</nav>
+
+		<div class="grow relative h-[calc(100vh-50px)]">
+			<slot />
+		</div>
+
+		<InfoModal id="info" title="About DoctorPricer">
+			<p class="text-gray-700 mb-4 leading-relaxed">
+				DoctorPricer was built to help New Zealanders find affordable
+				healthcare. GP fees can vary drastically, so we extract pricing data from
+				publicly available sources to help you make informed decisions.
+			</p>
+			<p class="text-sm text-gray-500 mb-6 italic">
+				Disclaimer: While we try our best to keep this data accurate, prices may
+				vary. Always confirm with the practice directly.
+			</p>
+			<div class="text-right">
+				<button
+					class="close-btn bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition-colors"
+				>
+					Got it
+				</button>
+			</div>
+		</InfoModal>
+	</body>
+</html>
