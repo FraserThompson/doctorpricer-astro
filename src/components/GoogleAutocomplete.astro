@@ -65,7 +65,7 @@ const { size = 'large' } = Astro.props;
 
 			const isLarge = this.dataset.size === 'large';
 			this.placeAutocomplete.style.height = isLarge ? '54px' : '34px';
-			this.placeAutocomplete.style.fontSize = isLarge ? '1.125rem' : '0.875rem';
+			this.placeAutocomplete.style.fontSize = '1rem';
 
 			this.container.innerHTML = '';
 			this.container.appendChild(this.placeAutocomplete);

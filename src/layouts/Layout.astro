@@ -14,14 +14,13 @@ const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 		<title>{title}</title>
 		<meta name="description" content={description} />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<script async src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&loading=async&libraries=geometry,places&v=weekly`
 		></script>
 	</head>
-	<body class="bg-[#f8f8f8] text-gray-800 font-sans h-screen flex flex-col m-0 p-0 overflow-hidden">
+	<body class="bg-[#f8f8f8] text-gray-800 font-sans h-screen w-full max-w-screen m-0 p-0 overflow-hidden">
 		<nav class="bg-[#0089CC] text-white h-12 flex items-center relative z-50 shadow-sm w-full shrink-0 px-4 justify-between">
 			<div class="flex items-center space-x-2">
 				<button
@@ -49,11 +48,17 @@ const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
 
 		<InfoModal id="info" title="About DoctorPricer">
 			<p class="text-gray-700 mb-4 leading-relaxed">
-				DoctorPricer was built to help New Zealanders find affordable healthcare. GP fees can vary drastically, so we extract pricing data
-				from publicly available sources to help you make informed decisions.
+				DoctorPricer was built to help New Zealanders find affordable healthcare. GP fees can vary drastically, so it uses pricing data from
+				publicly available sources to help you make informed decisions.
+			</p>
+			<p class="text-gray-700 mb-4 leading-relaxed">
+				It is entirely independent, non-commercial, and DIY funded. If you'd like to help support you can make a one-time or recurring donation <a
+					href="https://ko-fi.com/doctorpricer"
+					title="Donate at ko-fi">here.</a
+				>
 			</p>
 			<p class="text-sm text-gray-500 mb-6 italic">
-				Disclaimer: While we try our best to keep this data accurate, prices may vary. Always confirm with the practice directly.
+				Disclaimer: Best efforts are made to keep data accurate, but prices may vary.
 			</p>
 			<div class="text-right">
 				<button class="close-btn bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition-colors">

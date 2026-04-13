@@ -1,4 +1,6 @@
 ---
+import PracticeReportModal from './PracticeReportModal.astro';
+
 // PracticeSidebar.astro
 ---
 
@@ -27,7 +29,7 @@
 				<div>
 					<span id="practice-count" class="font-bold text-[#337ab7] text-lg">0</span>
 					<span class="text-sm">practices</span>
-					<span id="csc-indicator" class="text-sm hidden">(CSC prices)</span>
+					<span id="csc-indicator" class="font-bold text-sm hidden">(CSC prices)</span>
 				</div>
 			</div>
 
@@ -51,6 +53,9 @@
 		</div>
 
 		<ul id="practice-list" class="overflow-y-auto h-full flex-1"></ul>
+		<div class="px-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center shrink-0 z-20">
+			<span class="text-sm">Prices are valid for enrolled patients.</span>
+		</div>
 	</div>
 </practice-sidebar>
 
@@ -63,7 +68,9 @@
 			<p class="distance-display text-xs text-gray-500 m-0 font-medium"></p>
 		</div>
 		<div class="w-3/4 pl-2">
-			<h4 class="name-display text-[17px] font-semibold m-0 mb-1 leading-tight text-gray-900"></h4>
+			<div class="flex items-start justify-between gap-2">
+				<h4 class="name-display text-[17px] font-semibold m-0 mb-1 leading-tight text-gray-900"></h4>
+			</div>
 			<p class="address-wrapper text-sm m-0 text-gray-600 flex items-center gap-1">
 				<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 					><path
@@ -86,7 +93,7 @@
 				>
 				<span class="phone-display"></span>
 			</p>
-			<p class="website-wrapper text-sm m-0 text-[#337ab7] flex items-center gap-1 mt-1 hidden hover:text-[#286090]">
+			<p class="website-wrapper text-sm m-0 text-[#337ab7] items-center gap-1 mt-1 hidden">
 				<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 					><path
 						stroke-linecap="round"
@@ -97,14 +104,33 @@
 				>
 				<a class="website-display truncate block w-full hover:underline" target="_blank" rel="noopener noreferrer">Visit Website</a>
 			</p>
+			<p class="text-sm m-0 items-center gap-1 mt-1">
+				<button
+					class="report-btn hover:cursor-pointer text-xs flex items-center gap-1 text-gray-400 hover:text-gray-700 transition-colors"
+					aria-label="Suggest an edit"
+					title="Suggest an edit"
+				>
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg
+					>
+					Suggest Edit
+				</button>
+			</p>
 		</div>
 	</li>
 </template>
+
+<PracticeReportModal />
 
 <script>
 	import Hammer from 'hammerjs';
 	import { filteredPracticesStore, searchStore, selectedPracticeId } from '../store/appStore';
 	import { getPracticeId, getSidebarPriceDisplay, probablyRestricted } from '../services/practiceDisplay';
+	import type { Practice, RadiusBucket } from '../schema';
 
 	class PracticeSidebar extends HTMLElement {
 		private panel: HTMLDivElement | null = null;
@@ -115,6 +141,7 @@
 		private cscSpan: HTMLSpanElement | null = null;
 		private radiusSelect: HTMLSelectElement | null = null;
 		private enrollingFilter: HTMLInputElement | null = null;
+		private reportModal: (HTMLElement & { openForPractice?: (practice: Practice) => void }) | null = null;
 		private isOpen: boolean = false;
 
 		connectedCallback() {
@@ -126,6 +153,7 @@
 			this.cscSpan = this.querySelector('#csc-indicator');
 			this.radiusSelect = this.querySelector('#radius-select') as HTMLSelectElement | null;
 			this.enrollingFilter = this.querySelector('#enrolling-filter') as HTMLInputElement | null;
+			this.reportModal = document.querySelector('practice-report-modal') as HTMLElement | null;
 
 			// Mobile Menu Toggle Logic
 			this.toggleBtn?.addEventListener('click', () => this.openSidebar());
@@ -202,65 +230,75 @@
 
 			const currentSearch = searchStore.get();
 			const buckets = filteredPracticesStore.get() || [];
+			const practices: Practice[] = buckets
+				.flatMap((bucket: any) => bucket.practices || [])
+				.sort((a: any, b: any) => {
+					if (a.price !== b.price) return a.price - b.price;
+					return a.distance - b.distance;
+				});
 			const template = document.getElementById('practice-item-template') as HTMLTemplateElement;
 			this.listContainer.innerHTML = '';
 			let totalCount = 0;
 
 			const fragment = document.createDocumentFragment();
 
-			buckets.forEach((bucket: any) => {
-				if (!bucket.practices || bucket.practices.length === 0) return;
+			practices.forEach((practice) => {
+				totalCount++;
 
-				bucket.practices.forEach((practice: any) => {
-					totalCount++;
+				const clone = template.content.cloneNode(true) as DocumentFragment;
+				const li = clone.querySelector('li') as HTMLLIElement;
 
-					const clone = template.content.cloneNode(true) as DocumentFragment;
-					const li = clone.querySelector('li') as HTMLLIElement;
+				const uniqueId = getPracticeId(practice);
+				li.dataset.id = uniqueId;
 
-					const uniqueId = getPracticeId(practice);
-					li.dataset.id = uniqueId;
+				const priceDisplay = clone.querySelector('.price-display') as HTMLElement;
+				const sidebarPrice = getSidebarPriceDisplay(practice.price);
+				priceDisplay.textContent = sidebarPrice.text;
+				if (sidebarPrice.muted) {
+					priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
+				}
 
-					const priceDisplay = clone.querySelector('.price-display') as HTMLElement;
-					const sidebarPrice = getSidebarPriceDisplay(practice.price);
-					priceDisplay.textContent = sidebarPrice.text;
-					if (sidebarPrice.muted) {
-						priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
-					}
+				if (!practice.active) {
+					clone.querySelector('.enrolling-status')?.classList.remove('hidden');
+				}
 
-					if (!practice.active) {
-						clone.querySelector('.enrolling-status')?.classList.remove('hidden');
-					}
+				if (probablyRestricted(practice.price, currentSearch.age || 0)) {
+					clone.querySelector('.restricted')?.classList.remove('hidden');
+				}
 
-					if (probablyRestricted(practice.price, currentSearch.age || 0)) {
-						clone.querySelector('.restricted')?.classList.remove('hidden');
-					}
+				(clone.querySelector('.distance-display') as HTMLElement).textContent = `${practice.distance.toFixed(1)}km away`;
+				(clone.querySelector('.name-display') as HTMLElement).textContent = practice.name;
+				(clone.querySelector('.address-display') as HTMLElement).textContent = practice.address;
+				(clone.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
 
-					(clone.querySelector('.distance-display') as HTMLElement).textContent = `${practice.distance.toFixed(1)}km away`;
-					(clone.querySelector('.name-display') as HTMLElement).textContent = practice.name;
-					(clone.querySelector('.address-display') as HTMLElement).textContent = practice.address;
-					(clone.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
+				const websiteWrapper = clone.querySelector('.website-wrapper') as HTMLElement;
+				const websiteLink = clone.querySelector('.website-display') as HTMLAnchorElement;
+				const reportBtn = clone.querySelector('.report-btn') as HTMLButtonElement;
 
-					const websiteWrapper = clone.querySelector('.website-wrapper') as HTMLElement;
-					const websiteLink = clone.querySelector('.website-display') as HTMLAnchorElement;
+				if (practice.url && practice.url.trim() !== '') {
+					websiteWrapper.classList.remove('hidden');
+					websiteWrapper.classList.add('flex');
+					websiteLink.href = practice.url;
+					websiteLink.addEventListener('click', (e) => e.stopPropagation());
+				}
 
-					if (practice.url && practice.url.trim() !== '') {
-						websiteWrapper.classList.remove('hidden');
-						websiteLink.href = practice.url;
-						websiteLink.addEventListener('click', (e) => e.stopPropagation());
-					}
-
-					li.addEventListener('click', () => {
-						selectedPracticeId.set(uniqueId);
-						li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-					});
-
-					fragment.appendChild(clone);
+				reportBtn?.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const reportModal =
+						this.reportModal ||
+						(document.querySelector('practice-report-modal') as (HTMLElement & { openForPractice?: (practice: any) => void }) | null);
+					reportModal?.openForPractice?.(practice);
 				});
+
+				li.addEventListener('click', () => {
+					selectedPracticeId.set(uniqueId);
+					li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+				});
+
+				fragment.appendChild(clone);
 			});
 
 			this.listContainer.appendChild(fragment);
-			this.countSpan.textContent = totalCount.toString();
-
 			this.countSpan.textContent = totalCount.toString();
 		}
 
@@ -281,6 +319,7 @@
 
 			const selectedEl = this.querySelector(`[data-id="${id}"]`);
 			if (selectedEl) {
+				selectedEl.scrollIntoView();
 				selectedEl.classList.remove('bg-white', 'hover:bg-gray-50');
 				selectedEl.classList.add('bg-[#337ab7]', 'text-white', 'hover:bg-[#286090]');
 

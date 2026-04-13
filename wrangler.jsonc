@@ -23,8 +23,14 @@
 	},
 	"routes": [
 		{
+			"zone_name": "doctorpricer.co.nz",
 			"pattern": "beta.doctorpricer.co.nz",
 			"custom_domain": true
+		}
+	],
+	"send_email": [
+		{
+			"name": "report"
 		}
 	],
 	"observability": {

@@ -1,5 +1,5 @@
+import type { RadiusBucket } from '../schema';
 import { practicesStore } from '../store/appStore';
-import type { RadiusBucket } from '../worker';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || '';
 

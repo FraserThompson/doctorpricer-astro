@@ -1,5 +1,6 @@
 import type { RawPractice } from '../schema';
 
+// These are treated the same currently
 const NO_PRICE_SENTINEL = 1000;
 const INELIGIBLE_SENTINEL = 999;
 
@@ -24,7 +25,7 @@ export function getPracticeId(practice: PracticeIdentity): string {
  * @returns
  */
 export function probablyRestricted(price: number, age: number) {
-	return price === 0 && age > 14
+	return price === 0 && age > 13
 }
 
 /**
@@ -34,12 +35,8 @@ export function probablyRestricted(price: number, age: number) {
  * @returns string and style boolean.
  */
 export function getSidebarPriceDisplay(price: number): { text: string; muted: boolean } {
-	if (price === NO_PRICE_SENTINEL) {
+	if (price === NO_PRICE_SENTINEL || price === INELIGIBLE_SENTINEL) {
 		return { text: 'No price info', muted: true };
-	}
-
-	if (price === INELIGIBLE_SENTINEL) {
-		return { text: 'Ineligible', muted: true };
 	}
 
 	return { text: `$${price.toFixed(2)}`, muted: false };
@@ -52,11 +49,7 @@ export function getSidebarPriceDisplay(price: number): { text: string; muted: bo
  * @returns price to put on page.
  */
 export function getMarkerPriceDisplay(price: number): string {
-	if (price === NO_PRICE_SENTINEL) {
-		return 'N/A';
-	}
-
-	if (price === INELIGIBLE_SENTINEL) {
+	if (price === NO_PRICE_SENTINEL || price === INELIGIBLE_SENTINEL) {
 		return '-';
 	}
 

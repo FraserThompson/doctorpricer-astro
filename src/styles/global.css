@@ -1,34 +1,28 @@
 /* src/styles/global.css */
 @import "tailwindcss";
 
-html, body {
-  padding: 0;
-  margin: 0;
-  height: 100%;
-  font-family: Helvetica, Arial, sans-serif;
-  background-color: #f8f8f8;
-}
-
 /* Remove ugly outlines but maintain accessibility */
-a, button {
-  outline: 0 !important;
+a,
+button {
+	outline: 0 !important;
 }
 
 /* Fix for number inputs */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+	-webkit-appearance: none;
+	margin: 0;
 }
+
 input[type=number] {
-  -moz-appearance: textfield;
+	-moz-appearance: textfield;
 }
 
 /* The main centering container */
 .centre-container {
-  display: flex;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
+	display: flex;
+	height: 100%;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
 }

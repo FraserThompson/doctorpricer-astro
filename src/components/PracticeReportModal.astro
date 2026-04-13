@@ -1,0 +1,194 @@
+---
+import InfoModal from './InfoModal.astro';
+---
+
+<practice-report-modal>
+	<InfoModal id="report" title="Suggest an edit">
+		<form id="report-form" class="space-y-4">
+			<p class="text-gray-700">
+				Practice: <span id="report-practice-name" class="font-semibold text-gray-900">-</span>
+			</p>
+
+			<div>
+				<label for="report-fields" class="block text-sm font-medium text-gray-700 mb-1">What needs editing?</label>
+				<select
+					id="report-fields"
+					multiple
+					class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 bg-white min-h-30"
+				>
+					<option value="price">Price</option>
+					<option value="name">Practice name</option>
+					<option value="address">Address</option>
+					<option value="phone">Phone</option>
+					<option value="website">Website</option>
+					<option value="enrolling">Enrolling status</option>
+					<option value="other">Other</option>
+				</select>
+				<p class="text-xs text-gray-500 mt-1 mb-0">Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
+			</div>
+
+			<div>
+				<label for="report-correction" class="block text-sm font-medium text-gray-700 mb-1">What should it be?</label>
+				<input
+					id="report-correction"
+					type="text"
+					class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800"
+					placeholder="Enter the correct value"
+				/>
+			</div>
+
+			<p id="report-status" class="text-sm text-gray-600 m-0"></p>
+
+			<div class="text-right flex justify-end gap-2">
+				<button
+					type="submit"
+					id="report-submit"
+					class="bg-[#28A15D] hover:bg-[#118945] text-white px-4 py-2 rounded font-medium transition-colors"
+				>
+					Send Suggestion
+				</button>
+				<button class="close-btn bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition-colors">Close</button>
+			</div>
+		</form>
+	</InfoModal>
+</practice-report-modal>
+
+<script>
+	import type { Practice } from '../schema';
+	import { getPracticeId } from '../services/practiceDisplay';
+	const API_URL = import.meta.env.PUBLIC_API_URL || '';
+
+	class PracticeReportModal extends HTMLElement {
+		private reportPractice: Practice | null = null;
+
+		connectedCallback() {
+			const reportForm = this.querySelector('#report-form') as HTMLFormElement | null;
+			reportForm?.addEventListener('submit', (e) => {
+				e.preventDefault();
+				void this.submitReport();
+			});
+		}
+
+		openForPractice(practice: Practice) {
+			this.reportPractice = practice;
+			const nameEl = this.querySelector('#report-practice-name');
+			const correctionInput = this.querySelector('#report-correction') as HTMLInputElement | null;
+			const fieldsSelect = this.querySelector('#report-fields') as HTMLSelectElement | null;
+			const statusEl = this.querySelector('#report-status');
+
+			if (nameEl) {
+				nameEl.textContent = practice.name || '-';
+			}
+
+			if (correctionInput) {
+				correctionInput.value = '';
+			}
+
+			if (fieldsSelect) {
+				Array.from(fieldsSelect.options).forEach((option) => {
+					option.selected = false;
+				});
+			}
+
+			if (statusEl) {
+				statusEl.textContent = '';
+				statusEl.className = 'text-sm text-gray-600 m-0';
+			}
+
+			const reportDialog = this.querySelector('#report') as HTMLDialogElement | null;
+			if (reportDialog && !reportDialog.open) {
+				reportDialog.showModal();
+			}
+		}
+
+		private async submitReport() {
+			if (!this.reportPractice) return;
+
+			const fieldsSelect = this.querySelector('#report-fields') as HTMLSelectElement | null;
+			const correctionInput = this.querySelector('#report-correction') as HTMLInputElement | null;
+			const statusEl = this.querySelector('#report-status');
+			const submitBtn = this.querySelector('#report-submit') as HTMLButtonElement | null;
+
+			const fields = fieldsSelect ? Array.from(fieldsSelect.selectedOptions).map((option) => option.value) : [];
+			const correction = correctionInput?.value?.trim() || '';
+
+			if (fields.length === 0) {
+				if (statusEl) {
+					statusEl.textContent = 'Please select at least one inaccurate field.';
+					statusEl.className = 'text-sm text-red-600 m-0';
+				}
+				return;
+			}
+
+			if (!correction) {
+				if (statusEl) {
+					statusEl.textContent = 'Please enter what the value should be instead.';
+					statusEl.className = 'text-sm text-red-600 m-0';
+				}
+				return;
+			}
+
+			if (submitBtn) {
+				submitBtn.disabled = true;
+				submitBtn.textContent = 'Sending...';
+			}
+
+			if (statusEl) {
+				statusEl.textContent = '';
+				statusEl.className = 'text-sm text-gray-600 m-0';
+			}
+
+			try {
+				const response = await fetch(`${API_URL}api/report`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						practiceName: this.reportPractice.name,
+						practiceId: getPracticeId(this.reportPractice),
+						fields,
+						correction,
+						price: this.reportPractice.price,
+						address: this.reportPractice.address,
+						phone: this.reportPractice.phone,
+						url: this.reportPractice.url,
+					}),
+				});
+
+				if (!response.ok) {
+					let errorMessage = 'Failed to send suggestion. Please try again.';
+					try {
+						const data = (await response.json()) as { error?: string };
+						if (data?.error) errorMessage = data.error;
+					} catch {
+						// ignore parse errors and use fallback message
+					}
+
+					if (statusEl) {
+						statusEl.textContent = errorMessage;
+						statusEl.className = 'text-sm text-red-600 m-0';
+					}
+					return;
+				}
+
+				if (statusEl) {
+					statusEl.textContent = 'Thanks, your report has been sent.';
+					statusEl.className = 'text-sm text-green-700 m-0';
+				}
+			} catch {
+				if (statusEl) {
+					statusEl.textContent = 'Network error while sending suggestion. Please try again.';
+					statusEl.className = 'text-sm text-red-600 m-0';
+				}
+			} finally {
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Send Suggestion';
+				}
+			}
+		}
+	}
+
+	customElements.define('practice-report-modal', PracticeReportModal);
+</script>
