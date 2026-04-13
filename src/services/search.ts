@@ -8,12 +8,6 @@ declare global {
 	}
 }
 
-/**
- * Helper to check if the address is in Christchurch
- */
-const checkForChristchurch = (address: string): boolean => {
-	return address.includes("Christchurch");
-};
 
 /**
  * Initializes the search model, handling geocoding if necessary.
@@ -42,7 +36,6 @@ export const initializeSearch = async (
 			displayAddress,
 			onlyEnrolling,
 			radius: "0", // Defaulting to first radius bucket
-			isChristchurch: checkForChristchurch(address)
 		});
 		return;
 	}
@@ -80,8 +73,7 @@ export const initializeSearch = async (
 						csc,
 						address: formattedAddress,
 						displayAddress: shortAddress,
-						radius: "0",
-						isChristchurch: checkForChristchurch(formattedAddress)
+						radius: "0"
 					});
 
 					resolve();

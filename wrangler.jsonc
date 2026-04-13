@@ -23,7 +23,7 @@
 	},
 	"routes": [
 		{
-			"pattern": "doctorpricer.co.nz",
+			"pattern": "beta.doctorpricer.co.nz",
 			"custom_domain": true
 		}
 	],

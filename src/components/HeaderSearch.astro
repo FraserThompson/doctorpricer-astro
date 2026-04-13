@@ -70,14 +70,38 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 <script>
 	import { searchStore } from '../store/appStore';
 	import { fetchPractices } from '../services/practices';
+	import { resolveSearchLocation, type PlaceSelection } from '../services/placeSelection';
 
 	class HeaderSearch extends HTMLElement {
-		private activePlace: any = null;
+		private activePlace: PlaceSelection | null = null;
+
+		private getFormInputs(form: HTMLFormElement) {
+			return {
+				ageInput: form.querySelector('input[name="age"]') as HTMLInputElement,
+				cscInput: form.querySelector('input[name="csc"]') as HTMLInputElement,
+			};
+		}
+
+		private getFormValues(form: HTMLFormElement) {
+			const { ageInput, cscInput } = this.getFormInputs(form);
+			return {
+				age: parseInt(ageInput.value, 10),
+				csc: cscInput.checked,
+			};
+		}
+
+		private syncFormFromState(form: HTMLFormElement, state: ReturnType<typeof searchStore.get>) {
+			const { ageInput, cscInput } = this.getFormInputs(form);
+
+			if (ageInput && state?.age) ageInput.value = state.age.toString();
+			if (cscInput) cscInput.checked = !!state?.csc;
+		}
 
 		connectedCallback() {
 			const desktopForm = this.querySelector('#desktop-header-form') as HTMLFormElement;
 			const mobileForm = this.querySelector('#mobile-header-form') as HTMLFormElement;
 			const modal = this.querySelector('#mobile-search-modal') as HTMLDialogElement;
+			const forms = [desktopForm, mobileForm].filter(Boolean) as HTMLFormElement[];
 
 			this.querySelector('#mobile-search-toggle')?.addEventListener('click', () => modal.showModal());
 			this.querySelector('#close-mobile-search')?.addEventListener('click', () => modal.close());
@@ -85,34 +109,16 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 			const handleSubmit = async (e: SubmitEvent, form: HTMLFormElement) => {
 				e.preventDefault();
 
-				const age = parseInt((form.querySelector('input[name="age"]') as HTMLInputElement).value, 10);
-				const csc = (form.querySelector('input[name="csc"]') as HTMLInputElement).checked;
-				const autoInput = form.querySelector('.autocomplete-input') as HTMLInputElement;
+				const { age, csc } = this.getFormValues(form);
 
 				const currentSearch = searchStore.get();
-				const typedAddress = autoInput?.value?.trim();
+				const location = resolveSearchLocation(this.activePlace, currentSearch);
 
-				const isPlaceValid =
-					this.activePlace && (typedAddress === this.activePlace.formatted_address || typedAddress === this.activePlace.name);
-
-				const isSameAsCurrentStore = typedAddress === currentSearch?.displayAddress;
-
-				if (!isPlaceValid && !isSameAsCurrentStore && typedAddress !== '') {
-					alert('Please select a specific location from the dropdown suggestions.');
-					autoInput.focus();
+				if (!location) {
 					return;
 				}
 
-				const lat = isPlaceValid ? this.activePlace.geometry.location.lat() : currentSearch?.lat;
-				const lng = isPlaceValid ? this.activePlace.geometry.location.lng() : currentSearch?.lng;
-				const address = isPlaceValid ? this.activePlace.formatted_address : currentSearch?.address;
-
-				const displayAddress = isPlaceValid ? this.activePlace.formatted_address : currentSearch?.displayAddress;
-
-				if (!lat || !lng) {
-					alert('Please select a valid address from the dropdown.');
-					return;
-				}
+				const { lat, lng, address, displayAddress } = location;
 
 				// Update all keys in the store
 				searchStore.set({ ...currentSearch, lat, lng, age, csc, address, displayAddress });
@@ -122,35 +128,24 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 				modal.close();
 			};
 
-			[desktopForm, mobileForm].forEach((form) => {
-				if (!form) return;
-
+			forms.forEach((form) => {
 				form.addEventListener('submit', (e) => handleSubmit(e as SubmitEvent, form));
 
-				const cscInput = form.querySelector('input[name="csc"]') as HTMLInputElement;
+				const { cscInput } = this.getFormInputs(form);
 				cscInput?.addEventListener('change', () => form.requestSubmit());
 			});
 
 			searchStore.subscribe((state) => {
 				if (!state) return;
-				[desktopForm, mobileForm].forEach((form) => {
-					if (!form) return;
-					const ageInput = form.querySelector('input[name="age"]') as HTMLInputElement;
-					const cscInput = form.querySelector('input[name="csc"]') as HTMLInputElement;
-					const autoInput = form.querySelector('.autocomplete-input') as HTMLInputElement;
-
-					if (ageInput && state.age) ageInput.value = state.age.toString();
-					if (cscInput) cscInput.checked = !!state.csc;
-
-					if (autoInput && state.displayAddress && document.activeElement !== autoInput) {
-						autoInput.value = state.displayAddress;
-					}
+				forms.forEach((form) => {
+					this.syncFormFromState(form, state);
 				});
 			});
 
 			this.addEventListener('place-selected', ((e: CustomEvent) => {
-				this.activePlace = e.detail.place;
-				this.querySelector('form')?.requestSubmit();
+				this.activePlace = e.detail.place as PlaceSelection;
+				const sourceForm = (e.target as HTMLElement | null)?.closest('form') as HTMLFormElement | null;
+				sourceForm?.requestSubmit();
 			}) as EventListener);
 		}
 	}

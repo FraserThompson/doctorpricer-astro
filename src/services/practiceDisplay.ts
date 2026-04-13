@@ -1,0 +1,64 @@
+import type { RawPractice } from '../schema';
+
+const NO_PRICE_SENTINEL = 1000;
+const INELIGIBLE_SENTINEL = 999;
+
+type PracticeIdentity = Pick<RawPractice, 'name' | 'lat' | 'lng'>;
+
+/**
+ * Get's a unique ID for each practice.
+ *
+ * @param practice Practice object.
+ * @returns a unique ID to identify it in the DOM.
+ */
+export function getPracticeId(practice: PracticeIdentity): string {
+	return `${practice.name}-${practice.lat}-${practice.lng}`;
+}
+
+/**
+ * If a price is 0 and they're over 14 it might have some restrictions.
+ *
+ * @param price
+ * @param age
+ *
+ * @returns
+ */
+export function probablyRestricted(price: number, age: number) {
+	return price === 0 && age > 14
+}
+
+/**
+ * Returns the display price for a practice in the sidebar.
+ *
+ * @param price
+ * @returns string and style boolean.
+ */
+export function getSidebarPriceDisplay(price: number): { text: string; muted: boolean } {
+	if (price === NO_PRICE_SENTINEL) {
+		return { text: 'No price info', muted: true };
+	}
+
+	if (price === INELIGIBLE_SENTINEL) {
+		return { text: 'Ineligible', muted: true };
+	}
+
+	return { text: `$${price.toFixed(2)}`, muted: false };
+}
+
+/**
+ * Returns the display price for a practice on the marker.
+ *
+ * @param price
+ * @returns price to put on page.
+ */
+export function getMarkerPriceDisplay(price: number): string {
+	if (price === NO_PRICE_SENTINEL) {
+		return 'N/A';
+	}
+
+	if (price === INELIGIBLE_SENTINEL) {
+		return '-';
+	}
+
+	return `$${Math.round(price)}`;
+}

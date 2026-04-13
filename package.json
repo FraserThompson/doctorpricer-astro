@@ -7,12 +7,14 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "cross-env PUBLIC_API_URL=https://beta.doctorpricer.co.nz/ astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "backend-deploy": "wrangler deploy",
-		"backend-dev": "wrangler dev",
-    "backend-dev-put": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --local",
+    "deploy": "wrangler deploy",
+    "build-deploy": "pnpm run build && pnpm run deploy",
+    "dev-backend": "wrangler dev",
+    "deploy-db-dev": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --local",
+    "deploy-db": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --remote",
     "index": "docker exec -it doctorpricer_scraper python index.py",
     "scrape": "docker exec -it doctorpricer_scraper python scrape.py"
   },
@@ -26,10 +28,11 @@
     "typescript": "^6.0.2"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
     "@types/google.maps": "^3.58.1",
     "@types/hammerjs": "^2.0.46",
-    "@cloudflare/vitest-pool-workers": "^0.12.4",
     "@types/node": "^25.5.2",
+    "cross-env": "^10.1.0",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0",
     "wrangler": "^4.80.0"

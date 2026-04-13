@@ -1,41 +1,8 @@
+import type { Practice, PriceObj, RadiusBucket, ServerPractice } from "./schema";
+
 export interface Env {
 	PRACTICES_DB: KVNamespace;
 	ASSETS: Fetcher;
-}
-
-interface PriceObj {
-	from_age: number;
-	price: number;
-	is_csc: boolean;
-}
-
-export interface RawPractice {
-	name: string;
-	url: string;
-	phone: string;
-	address: string;
-	active: boolean;
-	pho: string;
-	lat: number;
-	lng: number;
-}
-
-// As it is in the JSON
-export interface ServerPractice extends RawPractice {
-	prices: PriceObj[];
-}
-
-// Practice returned from API after processing
-export interface Practice extends RawPractice {
-	distance: number;
-	price: number;
-}
-
-// For pre-sorting practices so the frontend does less work
-export interface RadiusBucket {
-	name: string; // "5km"
-	distance: number; // 5000
-	practices: Practice[];
 }
 
 // Math helper for distance. Uses some crazy formula I don't understand.
@@ -78,6 +45,14 @@ function bucketPractices(practices: Practice[]): RadiusBucket[] {
 		}
 	}
 
+	// Keep each radius bucket ordered by cheapest practice first.
+	for (const bucket of sortedBuckets) {
+		bucket.practices.sort((a, b) => {
+			if (a.price !== b.price) return a.price - b.price;
+			return a.distance - b.distance;
+		});
+	}
+
 	return sortedBuckets;
 }
 
@@ -86,15 +61,15 @@ function bucketPractices(practices: Practice[]): RadiusBucket[] {
  * @param prices - The array of pricing brackets from your scraped JSON.
  * @param patientAge - The integer age of the patient.
  * @param hasCsc - Boolean indicating if the patient holds a Community Services Card.
- * @returns The applicable price as a number, or null if no valid price exists.
+ * @returns The applicable price as a number, or 999 if no valid price exists.
  */
 function getApplicablePrice(
 	prices: PriceObj[],
 	patientAge: number,
 	hasCsc: boolean
-): number | null {
+): number {
 
-	if (!prices || prices.length === 0) return null;
+	if (!prices || prices.length === 0) return 999;
 
 	const validBrackets = prices.filter(bracket => {
 		// Patient is too young for this bracket
@@ -106,7 +81,7 @@ function getApplicablePrice(
 		return true;
 	});
 
-	if (validBrackets.length === 0) return null;
+	if (validBrackets.length === 0) return 999;
 
 	// Sort the valid brackets to surface the most applicable one to the top
 	validBrackets.sort((a, b) => {
@@ -141,10 +116,21 @@ export default {
 			if (!practicesStr) return new Response("[]", { status: 200 });
 			const practices = JSON.parse(practicesStr);
 
-			// Map all practices with distance and correct price
-			let processedPractices: any[] = practices.map((p: any) => {
+			// Map server practice object to client practice object with distance/price
+			let processedPractices: Practice[] = practices.map((p: ServerPractice) => {
 				const distance = getDistanceInKm(userLat, userLng, p.lat, p.lng);
-				return { ...p, distance, price: getApplicablePrice(p.prices, userAge, hasCSC) };
+				return {
+					name: p.name,
+					url: p.url,
+					phone: p.phone,
+					address: p.address,
+					active: p.active,
+					pho: p.pho,
+					lat: p.lat,
+					lng: p.lng,
+					distance,
+					price: getApplicablePrice(p.prices, userAge, hasCSC)
+				};
 			});
 
 			// Filter by max radius

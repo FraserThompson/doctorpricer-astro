@@ -1,6 +1,6 @@
 // src/store/appStore.ts
 import { atom, computed } from 'nanostores';
-import type { RadiusBucket } from '../worker';
+import type { RadiusBucket } from '../schema';
 
 export interface SearchState {
 	radius: string;
@@ -10,12 +10,11 @@ export interface SearchState {
 	csc?: boolean;
 	address?: string;
 	displayAddress?: string;
-	isChristchurch?: boolean;
 	onlyEnrolling?: boolean;
 }
 
 export const selectedPracticeId = atom<string | null>(null);
-export const searchStore = atom<SearchState>({ radius: "0" });
+export const searchStore = atom<SearchState>({ radius: "2000" });
 
 export const practicesStore = atom<RadiusBucket[]>([]);
 
@@ -28,9 +27,7 @@ export const filteredPracticesStore = computed(
 			? parseInt(search.radius, 10)
 			: 2000;
 
-		let filtered: RadiusBucket[];
-
-		filtered = practices.filter(bucket => bucket.distance <= selectedRadius);
+		let filtered: RadiusBucket[] = practices;
 
 		if (search?.onlyEnrolling) {
 			filtered = practices
@@ -40,6 +37,8 @@ export const filteredPracticesStore = computed(
 				}))
 				.filter(bucket => bucket.practices.length > 0);
 		}
+
+		filtered = filtered.filter(bucket => bucket.distance <= selectedRadius);
 
 		console.log(`[STORE] Filtered to ${selectedRadius}m. Returning ${filtered.length} buckets.`);
 

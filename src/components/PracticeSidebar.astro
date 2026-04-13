@@ -15,7 +15,7 @@
 
 	<div
 		id="sidebar-panel"
-		class="fixed inset-0 top-12 md:top-0 w-full h-full bg-white shadow-xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col md:relative md:translate-x-0 md:w-full md:z-10"
+		class="fixed inset-0 top-12 md:top-0 w-full h-[calc(100vh-48px)] bg-white shadow-xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col md:relative md:translate-x-0 md:w-full md:z-10"
 	>
 		<div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center shrink-0 z-20">
 			<div class="text-gray-700 font-medium flex items-center gap-2">
@@ -59,6 +59,7 @@
 		<div class="w-1/4 pr-2 flex flex-col justify-start">
 			<h4 class="price-display text-xl font-bold mt-0 mb-1"></h4>
 			<h5 class="enrolling-status text-sm font-bold mt-0 mb-1 text-red-600 uppercase hidden">Not enrolling</h5>
+			<h5 class="restricted text-sm font-bold mt-0 mb-1 text-orange-600 uppercase hidden">Restrictions may apply</h5>
 			<p class="distance-display text-xs text-gray-500 m-0 font-medium"></p>
 		</div>
 		<div class="w-3/4 pl-2">
@@ -103,29 +104,18 @@
 <script>
 	import Hammer from 'hammerjs';
 	import { filteredPracticesStore, searchStore, selectedPracticeId } from '../store/appStore';
+	import { getPracticeId, getSidebarPriceDisplay, probablyRestricted } from '../services/practiceDisplay';
 
 	class PracticeSidebar extends HTMLElement {
-		private panel: HTMLDivElement | null;
-		private toggleBtn: HTMLButtonElement | null;
-		private closeBtn: HTMLButtonElement | null;
-		private listContainer: HTMLUListElement | null;
-		private countSpan: HTMLSpanElement | null;
-		private cscSpan: HTMLSpanElement | null;
-		private radiusSelect: HTMLSelectElement | null;
-		private enrollingFilter: HTMLInputElement | null;
+		private panel: HTMLDivElement | null = null;
+		private toggleBtn: HTMLButtonElement | null = null;
+		private closeBtn: HTMLButtonElement | null = null;
+		private listContainer: HTMLUListElement | null = null;
+		private countSpan: HTMLSpanElement | null = null;
+		private cscSpan: HTMLSpanElement | null = null;
+		private radiusSelect: HTMLSelectElement | null = null;
+		private enrollingFilter: HTMLInputElement | null = null;
 		private isOpen: boolean = false;
-
-		constructor() {
-			super();
-			this.panel = null;
-			this.toggleBtn = null;
-			this.closeBtn = null;
-			this.listContainer = null;
-			this.countSpan = null;
-			this.cscSpan = null;
-			this.radiusSelect = null;
-			this.enrollingFilter = null;
-		}
 
 		connectedCallback() {
 			this.panel = this.querySelector('#sidebar-panel');
@@ -156,7 +146,7 @@
 				searchStore.set({ ...currentSearch, radius: target.value });
 			});
 
-			// Store Subscriptions
+			// Update on search
 			searchStore.subscribe((state) => {
 				if (!state) return;
 				if (state.radius && state.radius !== '0' && this.radiusSelect) {
@@ -167,12 +157,16 @@
 				} else {
 					this.cscSpan?.classList.add('hidden');
 				}
+				this.scrollToTop();
 			});
 
+			// Update on filter
 			filteredPracticesStore.subscribe(() => {
 				this.renderList();
+				this.scrollToTop();
 			});
 
+			// Update on selection
 			selectedPracticeId.subscribe((id) => {
 				this.highlightSelected(id);
 				// Automatically hide sidebar on mobile when a practice is selected so they can see the map
@@ -198,9 +192,15 @@
 			this.panel.classList.add('-translate-x-full');
 		}
 
+		private scrollToTop() {
+			if (!this.listContainer) return;
+			this.listContainer.scrollTop = 0;
+		}
+
 		private renderList() {
 			if (!this.listContainer || !this.countSpan) return;
 
+			const currentSearch = searchStore.get();
 			const buckets = filteredPracticesStore.get() || [];
 			const template = document.getElementById('practice-item-template') as HTMLTemplateElement;
 			this.listContainer.innerHTML = '';
@@ -217,22 +217,22 @@
 					const clone = template.content.cloneNode(true) as DocumentFragment;
 					const li = clone.querySelector('li') as HTMLLIElement;
 
-					const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
+					const uniqueId = getPracticeId(practice);
 					li.dataset.id = uniqueId;
 
 					const priceDisplay = clone.querySelector('.price-display') as HTMLElement;
-					if (practice.price === 1000) {
-						priceDisplay.textContent = 'No price info';
+					const sidebarPrice = getSidebarPriceDisplay(practice.price);
+					priceDisplay.textContent = sidebarPrice.text;
+					if (sidebarPrice.muted) {
 						priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
-					} else if (practice.price === 999) {
-						priceDisplay.textContent = 'Ineligible';
-						priceDisplay.className = 'text-lg font-bold mt-0 mb-1 text-gray-600';
-					} else {
-						priceDisplay.textContent = `$${practice.price.toFixed(2)}`;
 					}
 
 					if (!practice.active) {
 						clone.querySelector('.enrolling-status')?.classList.remove('hidden');
+					}
+
+					if (probablyRestricted(practice.price, currentSearch.age || 0)) {
+						clone.querySelector('.restricted')?.classList.remove('hidden');
 					}
 
 					(clone.querySelector('.distance-display') as HTMLElement).textContent = `${practice.distance.toFixed(1)}km away`;
@@ -297,13 +297,11 @@
 		}
 
 		private initHammer() {
-			if (!this.panel) return;
+			if (!this.listContainer) return;
 
-			// Bind Hammer to the sliding panel itself
-			const mc = new Hammer(this.panel);
+			const mc = new Hammer(this.listContainer);
 
-			// Detect fast swipes to the left
-			mc.on('swipeleft', () => {
+			mc.on('swipe', () => {
 				if (window.innerWidth < 768) {
 					// Only allow swiping it closed on mobile
 					this.closeSidebar();

@@ -2,7 +2,7 @@
 /**
  * PracticeMap.astro
  *
- * Displays a map of practices with Airbnb-style price markers.
+ * Displays a map of practices with price markers.
  */
 import 'mapbox-gl/dist/mapbox-gl.css';
 const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
@@ -23,7 +23,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 </template>
 
 <template id="popup-content-template">
-	<div class="p-1 min-w-[200px]">
+	<div class="p-1 min-w-50">
 		<h5 class="name-display font-bold text-lg m-0 leading-tight mb-2"></h5>
 
 		<p class="address-wrapper text-sm m-0 mt-1 flex items-start gap-1 text-gray-700">
@@ -64,13 +64,15 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 
 		<p class="pho-display text-xs text-gray-500 m-0 mt-2 pt-2 border-t border-gray-100"></p>
 		<p class="enrolling-status text-xs text-red-600 font-bold m-0 mt-1 uppercase tracking-wide hidden">Not Enrolling</p>
+		<p class="restricted text-xs text-orange-600 font-bold m-0 mt-1 uppercase tracking-wide hidden">Restrictions may apply</p>
 	</div>
 </template>
 
 <script>
 	import mapboxgl from 'mapbox-gl';
 	import { filteredPracticesStore, selectedPracticeId, searchStore } from '../store/appStore';
-	import type { RadiusBucket } from '../worker';
+	import { getMarkerPriceDisplay, getPracticeId, probablyRestricted } from '../services/practiceDisplay';
+	import type { RadiusBucket } from '../schema';
 
 	class PracticeMap extends HTMLElement {
 		private map!: mapboxgl.Map;
@@ -94,7 +96,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 				}
 			});
 
-			// Handle selection changes from both the map clicks AND the sidebar
+			// Handle selection changes
 			selectedPracticeId.subscribe((id) => {
 				// Reset marker scales
 				this.markersMap.forEach((marker) => {
@@ -120,7 +122,6 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 							innerPill.classList.add('scale-125', 'shadow-xl');
 						}
 
-						// USE setDOMContent() HERE
 						this.activePopup.setLngLat(marker.getLngLat()).setDOMContent(popupNode).addTo(this.map);
 
 						this.map.flyTo({ center: marker.getLngLat(), zoom: 14, speed: 1.2 });
@@ -138,7 +139,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 				container: mapCanvas,
 				style: 'mapbox://styles/mapbox/streets-v12',
 				center: [172.6306, -43.532],
-				zoom: 10,
+				zoom: 3,
 				pitchWithRotate: false,
 				dragRotate: false,
 			});
@@ -175,6 +176,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 		private renderMarkers(practices: readonly RadiusBucket[]) {
 			if (!this.map) return;
 
+			const currentSearch = searchStore.get();
 			this.markers.forEach((marker) => marker.remove());
 			this.markers = [];
 			this.markersMap.clear();
@@ -193,7 +195,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 			practiceList.forEach((practice: any) => {
 				if (!practice.lng || !practice.lat) return;
 
-				const uniqueId = `${practice.name}-${practice.lat}-${practice.lng}`;
+				const uniqueId = getPracticeId(practice);
 
 				const popupClone = popupTemplate.content.cloneNode(true) as DocumentFragment;
 				const popupNode = popupClone.firstElementChild as HTMLElement;
@@ -212,6 +214,10 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 					popupNode.querySelector('.enrolling-status')?.classList.remove('hidden');
 				}
 
+				if (probablyRestricted(practice.price, currentSearch.age || 0)) {
+					popupNode.querySelector('.restricted')?.classList.remove('hidden');
+				}
+
 				this.popupNodeMap.set(uniqueId, popupNode);
 
 				const markerClone = markerTemplate.content.cloneNode(true) as DocumentFragment;
@@ -219,11 +225,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 				const innerPill = markerNode.querySelector('.inner-pill') as HTMLElement;
 				const priceDisplay = markerNode.querySelector('.price-display') as HTMLElement;
 
-				let displayPrice = `$${Math.round(practice.price)}`;
-				if (practice.price === 1000) displayPrice = 'N/A';
-				if (practice.price === 999) displayPrice = '-';
-
-				priceDisplay.textContent = displayPrice;
+				priceDisplay.textContent = getMarkerPriceDisplay(practice.price);
 				innerPill.classList.add(practice.active ? 'bg-[#28A15D]' : 'bg-gray-500');
 
 				const marker = new mapboxgl.Marker(markerNode).setLngLat([practice.lng, practice.lat]).addTo(this.map);
@@ -240,7 +242,6 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 			});
 
 			// Blue Marker for the User
-			const currentSearch = searchStore.get();
 			if (currentSearch && currentSearch.lng && currentSearch.lat) {
 				const userEl = document.createElement('div');
 				userEl.className = 'w-4 h-4 bg-[#337ab7] border-2 border-white rounded-full shadow-md z-10';
@@ -260,6 +261,9 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 </script>
 
 <style>
+	:global(.mapboxgl-popup) {
+		z-index: 10;
+	}
 	:global(.mapboxgl-popup-content) {
 		font-family: inherit;
 		border-radius: 0.75rem;

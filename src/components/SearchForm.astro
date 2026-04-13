@@ -4,7 +4,7 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 
 <doctor-search-form class="flex h-full items-center justify-center">
 	<div class="w-[90%] max-w-[500px] text-center pb-24">
-		<h3 class="text-2xl font-medium mb-6 text-gray-800">Compare fees from 1000+ NZ practices.</h3>
+		<h3 class="text-2xl font-medium mb-6 text-gray-800">Compare fees from 1000+ NZ medical practices.</h3>
 
 		<form id="search-form" class="space-y-4">
 			<div class="w-full">
@@ -29,8 +29,10 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 					Do you have a <a
 						href="https://www.workandincome.govt.nz/products/a-z-benefits/community-services-card.html"
 						target="_blank"
-						class="text-[#337ab7] hover:underline hover:text-[#23527c] font-normal">Community Services Card?</a
+						class="text-[#337ab7] hover:underline hover:text-[#23527c]"
 					>
+						Community Services Card?
+					</a>
 				</h4>
 				<div class="flex space-x-4 mt-2 sm:mt-0">
 					<label class="flex items-center space-x-1 cursor-pointer text-[18px]">
@@ -57,14 +59,16 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 </doctor-search-form>
 
 <script>
+	import { toResolvedSearchLocation, type PlaceSelection } from '../services/placeSelection';
+
 	class DoctorSearchForm extends HTMLElement {
-		private selectedPlace: any = null;
+		private selectedPlace: PlaceSelection | null = null;
 
 		connectedCallback() {
 			// Listen for the event emitted by our Autocomplete component
-			this.addEventListener('place-selected', (e: any) => {
-				const details = e.detail as any;
-				this.selectedPlace = details.place;
+			this.addEventListener('place-selected', (e: Event) => {
+				const details = (e as CustomEvent).detail as { place?: PlaceSelection };
+				this.selectedPlace = details.place || null;
 			});
 
 			this.querySelector('#search-form')?.addEventListener('submit', (e) => {
@@ -75,27 +79,23 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 
 		handleSubmit() {
 			if (!this.selectedPlace) {
-				alert('Please select an address from the dropdown.');
 				return;
 			}
 
-			const lat = this.selectedPlace.geometry.location.lat();
-			const lng = this.selectedPlace.geometry.location.lng();
-			const address = this.selectedPlace.formatted_address;
-			const shortAddress = `${this.selectedPlace.address_components[0].short_name} ${this.selectedPlace.address_components[1].short_name}`;
+			const { lat, lng, address, displayAddress } = toResolvedSearchLocation(this.selectedPlace);
 
 			const ageEl: HTMLInputElement | null = this.querySelector('#age');
 			const cscEl: HTMLInputElement | null = this.querySelector('input[name="csc"]:checked');
-			const age = ageEl?.value || 10;
-			const csc = cscEl?.value || 'false';
+			const age = ageEl?.value || '10';
+			const csc = cscEl?.value || '0';
 
 			const queryParams = new URLSearchParams({
 				lat: lat.toString(),
 				lng: lng.toString(),
-				age: age.toString(),
+				age: age,
 				csc: csc,
 				address: address,
-				displayAddress: shortAddress,
+				displayAddress: displayAddress,
 			});
 
 			window.location.href = `/result?${queryParams.toString()}`;
