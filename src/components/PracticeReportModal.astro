@@ -43,9 +43,23 @@ import Modal from './Modal.astro';
 				<button
 					type="submit"
 					id="report-submit"
-					class="bg-[#28A15D] hover:bg-[#118945] text-white px-4 py-2 rounded font-medium transition-colors"
+					class="bg-[#28A15D] hover:bg-[#118945] text-white px-4 py-2 rounded font-medium transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
 				>
-					Send Suggestion
+					<svg
+						id="report-submit-spinner"
+						class="hidden h-4 w-4 animate-spin"
+						viewBox="0 0 24 24"
+						fill="none"
+						aria-hidden="true"
+					>
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path
+							class="opacity-90"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						></path>
+					</svg>
+					<span id="report-submit-label">Send Suggestion</span>
 				</button>
 				<button class="close-btn bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition-colors">Close</button>
 			</div>
@@ -59,6 +73,9 @@ import Modal from './Modal.astro';
 
 	class PracticeReportModal extends HTMLElement {
 		private reportPractice: Practice | null = null;
+		private isSubmitting = false;
+		private lastSubmitAt = 0;
+		private readonly submitCooldownMs = 10000;
 
 		connectedCallback() {
 			const reportForm = this.querySelector('#report-form') as HTMLFormElement | null;
@@ -107,9 +124,29 @@ import Modal from './Modal.astro';
 			const correctionInput = this.querySelector('#report-correction') as HTMLInputElement | null;
 			const statusEl = this.querySelector('#report-status');
 			const submitBtn = this.querySelector('#report-submit') as HTMLButtonElement | null;
+			const submitSpinner = this.querySelector('#report-submit-spinner') as SVGElement | null;
+			const submitLabel = this.querySelector('#report-submit-label') as HTMLSpanElement | null;
 
 			const fields = fieldsSelect ? Array.from(fieldsSelect.selectedOptions).map((option) => option.value) : [];
 			const correction = correctionInput?.value?.trim() || '';
+
+			if (this.isSubmitting) {
+				if (statusEl) {
+					statusEl.textContent = 'Your previous report is still being sent.';
+					statusEl.className = 'text-sm text-amber-700 m-0';
+				}
+				return;
+			}
+
+			const elapsedSinceLastSubmit = Date.now() - this.lastSubmitAt;
+			if (elapsedSinceLastSubmit < this.submitCooldownMs) {
+				const secondsLeft = Math.ceil((this.submitCooldownMs - elapsedSinceLastSubmit) / 1000);
+				if (statusEl) {
+					statusEl.textContent = `Please wait ${secondsLeft}s before sending another suggestion.`;
+					statusEl.className = 'text-sm text-amber-700 m-0';
+				}
+				return;
+			}
 
 			if (fields.length === 0) {
 				if (statusEl) {
@@ -129,8 +166,15 @@ import Modal from './Modal.astro';
 
 			if (submitBtn) {
 				submitBtn.disabled = true;
-				submitBtn.textContent = 'Sending...';
+				submitBtn.setAttribute('aria-busy', 'true');
 			}
+			if (submitSpinner) {
+				submitSpinner.classList.remove('hidden');
+			}
+			if (submitLabel) {
+				submitLabel.textContent = 'Sending...';
+			}
+			this.isSubmitting = true;
 
 			if (statusEl) {
 				statusEl.textContent = '';
@@ -175,15 +219,23 @@ import Modal from './Modal.astro';
 					statusEl.textContent = 'Thanks, your report has been sent.';
 					statusEl.className = 'text-sm text-green-700 m-0';
 				}
+				this.lastSubmitAt = Date.now();
 			} catch {
 				if (statusEl) {
 					statusEl.textContent = 'Network error while sending suggestion. Please try again.';
 					statusEl.className = 'text-sm text-red-600 m-0';
 				}
 			} finally {
+				this.isSubmitting = false;
 				if (submitBtn) {
 					submitBtn.disabled = false;
-					submitBtn.textContent = 'Send Suggestion';
+					submitBtn.removeAttribute('aria-busy');
+				}
+				if (submitSpinner) {
+					submitSpinner.classList.add('hidden');
+				}
+				if (submitLabel) {
+					submitLabel.textContent = 'Send Suggestion';
 				}
 			}
 		}

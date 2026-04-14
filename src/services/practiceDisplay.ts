@@ -4,8 +4,6 @@ import type { RawPractice } from '../schema';
 const NO_PRICE_SENTINEL = 1000;
 const INELIGIBLE_SENTINEL = 999;
 
-type PracticeIdentity = Pick<RawPractice, 'name' | 'lat' | 'lng'>;
-
 /**
  * If a price is 0 and they're over 14 it might have some restrictions.
  *

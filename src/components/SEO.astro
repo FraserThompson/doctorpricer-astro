@@ -1,0 +1,39 @@
+---
+export interface Props {
+	title?: string;
+}
+
+const description =
+	'DoctorPricer was built to help New Zealanders find affordable healthcare. GP fees can vary drastically, so it uses pricing data from publicly available sources to help you make informed decisions by comparing doctor fees from 1000+ medical practices..';
+const siteName = 'DoctorPricer';
+const baseUrl = Astro.site ?? Astro.url;
+const canonicalUrl = new URL(`${Astro.url.pathname}${Astro.url.search}`, baseUrl).toString();
+const socialImageUrl = new URL('/favicon.png', baseUrl).toString();
+
+const { title = 'DoctorPricer' } = Astro.props;
+---
+
+<meta name="description" content={description} />
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+<meta name="author" content={siteName} />
+<meta name="theme-color" content="#337ab7" />
+
+<link rel="canonical" href={canonicalUrl} />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" href="/favicon.png" sizes="512x512" />
+<link rel="apple-touch-icon" href="/favicon.png" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content={siteName} />
+<meta property="og:locale" content="en_NZ" />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={socialImageUrl} />
+<meta property="og:image:alt" content="DoctorPricer logo" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={socialImageUrl} />
+<meta name="twitter:image:alt" content="DoctorPricer logo" />

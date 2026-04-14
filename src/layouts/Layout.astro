@@ -1,13 +1,14 @@
 ---
 import InfoModal from '../components/InfoModal.astro';
+import SEO from '../components/SEO.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import '../styles/global.css';
 
 export interface Props {
 	title?: string;
-	description?: string;
 }
-const { title = 'DoctorPricer', description = 'Compare prices from 1000+ NZ medical practices.' } = Astro.props;
+
+const { title = 'DoctorPricer' } = Astro.props;
 const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
 ---
 
@@ -16,13 +17,15 @@ const GOOGLE_API_KEY = import.meta.env.GOOGLE_API_KEY;
 	<head>
 		<meta charset="utf-8" />
 		<title>{title}</title>
-		<meta name="description" content={description} />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<script async src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&loading=async&libraries=geometry,places&v=weekly`
+		<SEO title={title} />
+		<script async src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&loading=async&libraries=geometry,places&v=weekly`}
 		></script>
 	</head>
 	<body class="bg-[#f8f8f8] text-gray-800 font-sans h-screen w-full max-w-screen m-0 p-0 overflow-hidden">
-		<SiteHeader />
+		<SiteHeader>
+			<slot name="header" slot="header" />
+		</SiteHeader>
 		<div class="grow relative h-[calc(100vh-48px)]">
 			<slot />
 		</div>
