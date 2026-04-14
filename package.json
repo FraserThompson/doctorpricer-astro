@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "cross-env PUBLIC_API_URL=https://beta.doctorpricer.co.nz/ astro build",
+    "build": "cross-env PUBLIC_API_URL=https://doctorpricer.co.nz/ astro build",
     "preview": "astro preview",
     "astro": "astro",
     "deploy": "wrangler deploy",

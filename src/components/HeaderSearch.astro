@@ -31,7 +31,7 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 			<span>CSC</span>
 		</label>
 		<button type="submit" class="bg-[#28A15D] hover:bg-[#118945] text-white px-3 py-1.5 text-sm rounded shadow-sm transition-colors">
-			Search
+			Update Results
 		</button>
 	</form>
 
@@ -130,9 +130,6 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 
 			forms.forEach((form) => {
 				form.addEventListener('submit', (e) => handleSubmit(e as SubmitEvent, form));
-
-				const { cscInput } = this.getFormInputs(form);
-				cscInput?.addEventListener('change', () => form.requestSubmit());
 			});
 
 			searchStore.subscribe((state) => {
@@ -144,8 +141,6 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 
 			this.addEventListener('place-selected', ((e: CustomEvent) => {
 				this.activePlace = e.detail.place as PlaceSelection;
-				const sourceForm = (e.target as HTMLElement | null)?.closest('form') as HTMLFormElement | null;
-				sourceForm?.requestSubmit();
 			}) as EventListener);
 		}
 	}

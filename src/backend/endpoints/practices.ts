@@ -60,7 +60,7 @@ function bucketPractices(practices: Practice[]): RadiusBucket[] {
  * @param hasCsc - Boolean indicating if the patient holds a Community Services Card.
  * @returns The applicable price as a number, or 999 if no valid price exists.
  */
-function getApplicablePrice(
+export function getApplicablePrice(
 	prices: PriceObj[],
 	patientAge: number,
 	hasCsc: boolean,
@@ -111,6 +111,7 @@ export async function handlePractices(url: URL, env: BackendEnv): Promise<Respon
 	let processedPractices: Practice[] = practices.map((p: ServerPractice) => {
 		const distance = getDistanceInKm(userLat, userLng, p.lat, p.lng);
 		return {
+			id: p.id,
 			name: p.name,
 			url: p.url,
 			phone: p.phone,

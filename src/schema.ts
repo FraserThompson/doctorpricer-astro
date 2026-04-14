@@ -9,6 +9,7 @@ export interface PriceObj {
 }
 
 export interface RawPractice {
+	id: string;
 	name: string;
 	url: string;
 	phone: string;
@@ -35,4 +36,16 @@ export interface RadiusBucket {
 	name: string; // "5km"
 	distance: number; // 5000
 	practices: Practice[];
+}
+
+export interface PracticeSummary {
+	id: string;
+	name: string;
+	url: string;
+	price: number;
+}
+
+export interface AgeStat {
+	averagePrice: number;
+	mostExpensive: PracticeSummary;
 }

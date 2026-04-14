@@ -1,9 +1,9 @@
 ---
-import InfoModal from './InfoModal.astro';
+import Modal from './Modal.astro';
 ---
 
 <practice-report-modal>
-	<InfoModal id="report" title="Suggest an edit">
+	<Modal id="report" title="Suggest an edit">
 		<form id="report-form" class="space-y-4">
 			<p class="text-gray-700">
 				Practice: <span id="report-practice-name" class="font-semibold text-gray-900">-</span>
@@ -50,12 +50,11 @@ import InfoModal from './InfoModal.astro';
 				<button class="close-btn bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded font-medium transition-colors">Close</button>
 			</div>
 		</form>
-	</InfoModal>
+	</Modal>
 </practice-report-modal>
 
 <script>
 	import type { Practice } from '../schema';
-	import { getPracticeId } from '../services/practiceDisplay';
 	const API_URL = import.meta.env.PUBLIC_API_URL || '';
 
 	class PracticeReportModal extends HTMLElement {
@@ -146,7 +145,7 @@ import InfoModal from './InfoModal.astro';
 					},
 					body: JSON.stringify({
 						practiceName: this.reportPractice.name,
-						practiceId: getPracticeId(this.reportPractice),
+						practiceId: this.reportPractice.id,
 						fields,
 						correction,
 						price: this.reportPractice.price,

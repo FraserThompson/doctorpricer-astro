@@ -1,0 +1,98 @@
+---
+// Stats.astro
+---
+
+<div id="stats-container">
+	<div id="stats-loading" class="py-8 text-center text-gray-500 text-sm">Loading stats...</div>
+
+	<table id="stats-table" class="hidden w-full text-sm border-collapse">
+		<thead>
+			<tr class="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+				<th class="px-2 py-1 border-b border-gray-200">Age</th>
+				<th class="px-2 py-1 border-b border-gray-200">Avg. Price</th>
+				<th class="px-2 py-1 border-b border-gray-200">Highest Price</th>
+			</tr>
+		</thead>
+		<tbody id="stats-body" class="divide-y divide-gray-100 bg-white"></tbody>
+	</table>
+
+	<p id="stats-error" class="hidden py-8 text-center text-red-500 text-sm">Failed to load stats.</p>
+</div>
+
+<template id="stats-row-template">
+	<tr class="hover:bg-gray-50 transition-colors">
+		<td class="label px-2 py-1 font-medium text-gray-800 whitespace-nowrap"></td>
+		<td class="price px-2 py-1 text-[#008f0c] font-semibold whitespace-nowrap"></td>
+		<td class="expensive px-2 py-1 font-semibold">
+			<span class="expensive-price font-medium text-red-600"></span>
+			{' '}
+			<a class="expensive-link font-medium text-[#337ab7] hover:underline" href="" target="_blank" rel="noopener noreferrer"></a>
+		</td>
+	</tr>
+</template>
+
+<script>
+	import { fetchStats } from '../services/stats';
+
+	const AGE_LABELS: Record<number, string> = {
+		0: 'Under 14',
+		14: '14-17',
+		18: '18-24',
+		25: '25-44',
+		45: '45-64',
+		65: '65+',
+	};
+
+	function formatCurrency(value: number | null | undefined) {
+		return value != null ? `$${value.toFixed(2)}` : '—';
+	}
+
+	async function loadStats() {
+		const loading = document.getElementById('stats-loading')!;
+		const table = document.getElementById('stats-table')!;
+		const tbody = document.getElementById('stats-body')!;
+		const error = document.getElementById('stats-error')!;
+		const rowTemplate = document.getElementById('stats-row-template') as HTMLTemplateElement;
+
+		try {
+			const stats = await fetchStats();
+
+			const ages = Object.keys(stats)
+				.map(Number)
+				.sort((a, b) => a - b);
+
+			tbody.replaceChildren();
+			const fragment = document.createDocumentFragment();
+
+			for (const age of ages) {
+				const stat = stats[age];
+				const label = AGE_LABELS[age] ?? `${age}+`;
+				const avg = formatCurrency(stat.averagePrice);
+				const expName = stat.mostExpensive?.name ?? '—';
+				const expUrl = stat.mostExpensive?.url ?? '';
+				const expPrice = formatCurrency(stat.mostExpensive?.price);
+
+				const rowClone = rowTemplate.content.cloneNode(true) as DocumentFragment;
+				const rowNode = rowClone.firstElementChild as HTMLElement;
+
+				(rowNode.querySelector('.label') as HTMLElement).textContent = label;
+				(rowNode.querySelector('.price') as HTMLElement).textContent = avg;
+				(rowNode.querySelector('.expensive-price') as HTMLElement).textContent = expPrice;
+				(rowNode.querySelector('.expensive-link') as HTMLAnchorElement).textContent = expName;
+				(rowNode.querySelector('.expensive-link') as HTMLAnchorElement).href = expUrl;
+
+				fragment.appendChild(rowNode);
+			}
+
+			tbody.appendChild(fragment);
+
+			loading.classList.add('hidden');
+			table.classList.remove('hidden');
+		} catch {
+			loading.classList.add('hidden');
+			error.classList.remove('hidden');
+		}
+	}
+
+	loadStats();
+</script>

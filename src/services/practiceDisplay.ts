@@ -7,16 +7,6 @@ const INELIGIBLE_SENTINEL = 999;
 type PracticeIdentity = Pick<RawPractice, 'name' | 'lat' | 'lng'>;
 
 /**
- * Get's a unique ID for each practice.
- *
- * @param practice Practice object.
- * @returns a unique ID to identify it in the DOM.
- */
-export function getPracticeId(practice: PracticeIdentity): string {
-	return `${practice.name}-${practice.lat}-${practice.lng}`;
-}
-
-/**
  * If a price is 0 and they're over 14 it might have some restrictions.
  *
  * @param price
