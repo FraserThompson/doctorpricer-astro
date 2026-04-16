@@ -8,7 +8,7 @@ const description =
 const siteName = 'DoctorPricer';
 const baseUrl = Astro.site ?? Astro.url;
 const canonicalUrl = new URL(`${Astro.url.pathname}${Astro.url.search}`, baseUrl).toString();
-const socialImageUrl = new URL('/favicon.png', baseUrl).toString();
+const socialImageUrl = new URL('/cover.png', baseUrl).toString();
 
 const { title = 'DoctorPricer' } = Astro.props;
 ---

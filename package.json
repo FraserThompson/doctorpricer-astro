@@ -15,6 +15,7 @@
     "dev-backend": "wrangler dev",
     "deploy-db-dev": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --local",
     "deploy-db": "npx wrangler kv key put --binding=PRACTICES_DB LATEST_PRACTICES --path=scrapers/scripts/extracted_practices.json --remote",
+    "verify-locations": "node scrapers/scripts/verify-duplicate-locations.mjs",
     "index": "docker exec -it doctorpricer_scraper python index.py",
     "scrape": "docker exec -it doctorpricer_scraper python scrape.py"
   },

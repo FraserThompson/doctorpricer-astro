@@ -29,7 +29,7 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 	import mapboxgl from 'mapbox-gl';
 	import { filteredPracticesStore, selectedPracticeId, searchStore } from '../store/appStore';
 	import { getMarkerPriceDisplay, probablyRestricted } from '../services/practiceDisplay';
-	import type { RadiusBucket } from '../schema';
+	import type { Practice, RadiusBucket } from '../schema';
 
 	class PracticeMap extends HTMLElement {
 		private map!: mapboxgl.Map;
@@ -138,6 +138,75 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 			resizeObserver.observe(this);
 		}
 
+		private buildPracticePopupNode(practice: Practice, age: number): HTMLElement {
+			const popupTemplate = document.getElementById('popup-content-template') as HTMLTemplateElement;
+			const popupClone = popupTemplate.content.cloneNode(true) as DocumentFragment;
+			const popupNode = popupClone.firstElementChild as HTMLElement;
+
+			(popupNode.querySelector('.name-display') as HTMLElement).textContent = practice.name;
+			(popupNode.querySelector('.address-display') as HTMLElement).textContent = practice.address;
+			(popupNode.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
+			(popupNode.querySelector('.pho-display') as HTMLElement).textContent = practice.pho;
+
+			if (practice.url && practice.url.trim() !== '') {
+				popupNode.querySelector('.website-wrapper')?.classList.remove('hidden');
+				(popupNode.querySelector('.website-display') as HTMLAnchorElement).href = practice.url;
+			}
+
+			if (!practice.active) {
+				popupNode.querySelector('.enrolling-status')?.classList.remove('hidden');
+			}
+
+			if (probablyRestricted(practice.price, age)) {
+				popupNode.querySelector('.restricted')?.classList.remove('hidden');
+			}
+
+			return popupNode;
+		}
+
+		private buildGroupedPopupNode(practicesAtLocation: Practice[]): HTMLElement {
+			const wrapper = document.createElement('div');
+			wrapper.className = 'p-1 w-[min(80vw,18rem)] max-w-full';
+
+			const heading = document.createElement('h5');
+			heading.className = 'font-bold text-base m-0 mb-2';
+			heading.textContent = `${practicesAtLocation.length} practices at this location`;
+			wrapper.appendChild(heading);
+
+			const list = document.createElement('div');
+			list.className = 'flex flex-col gap-1.5 max-h-72 overflow-y-auto';
+
+			for (const practice of practicesAtLocation) {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className =
+					'w-full text-left rounded-md border border-gray-200 px-2.5 py-2 text-sm hover:bg-gray-50 transition-colors overflow-hidden';
+
+				const price = getMarkerPriceDisplay(practice.price);
+
+				const nameLine = document.createElement('div');
+				nameLine.className = 'font-semibold text-gray-900 break-words';
+				nameLine.textContent = practice.name;
+
+				const priceLine = document.createElement('div');
+				priceLine.className = 'text-xs text-gray-600';
+				priceLine.textContent = price;
+
+				button.appendChild(nameLine);
+				button.appendChild(priceLine);
+
+				button.addEventListener('click', (event) => {
+					event.stopPropagation();
+					selectedPracticeId.set(practice.id);
+				});
+
+				list.appendChild(button);
+			}
+
+			wrapper.appendChild(list);
+			return wrapper;
+		}
+
 		private renderMarkers(practices: readonly RadiusBucket[]) {
 			if (!this.map) return;
 
@@ -152,55 +221,75 @@ const MAPBOX_KEY = import.meta.env.MAPBOX_KEY;
 			const bounds = new mapboxgl.LngLatBounds();
 			let addedMarkers = 0;
 
-			const practiceList = practices[0]?.practices ? practices.flatMap((b) => b.practices) : practices;
-
-			const popupTemplate = document.getElementById('popup-content-template') as HTMLTemplateElement;
+			const practiceList = (practices[0]?.practices ? practices.flatMap((b) => b.practices) : practices) as Practice[];
 			const markerTemplate = document.getElementById('marker-pill-template') as HTMLTemplateElement;
+			const age = currentSearch.age || 0;
 
-			practiceList.forEach((practice: any) => {
-				if (!practice.lng || !practice.lat) return;
+			const groupedByCoordinates = new Map<string, Practice[]>();
 
-				const popupClone = popupTemplate.content.cloneNode(true) as DocumentFragment;
-				const popupNode = popupClone.firstElementChild as HTMLElement;
+			for (const practice of practiceList) {
+				if (typeof practice.lng !== 'number' || typeof practice.lat !== 'number') continue;
 
-				(popupNode.querySelector('.name-display') as HTMLElement).textContent = practice.name;
-				(popupNode.querySelector('.address-display') as HTMLElement).textContent = practice.address;
-				(popupNode.querySelector('.phone-display') as HTMLElement).textContent = practice.phone;
-				(popupNode.querySelector('.pho-display') as HTMLElement).textContent = practice.pho;
+				const key = `${practice.lat},${practice.lng}`;
+				const group = groupedByCoordinates.get(key) ?? [];
+				group.push(practice);
+				groupedByCoordinates.set(key, group);
+			}
 
-				if (practice.url && practice.url.trim() !== '') {
-					popupNode.querySelector('.website-wrapper')?.classList.remove('hidden');
-					(popupNode.querySelector('.website-display') as HTMLAnchorElement).href = practice.url;
-				}
-
-				if (!practice.active) {
-					popupNode.querySelector('.enrolling-status')?.classList.remove('hidden');
-				}
-
-				if (probablyRestricted(practice.price, currentSearch.age || 0)) {
-					popupNode.querySelector('.restricted')?.classList.remove('hidden');
-				}
-
-				this.popupNodeMap.set(practice.id, popupNode);
+			groupedByCoordinates.forEach((practicesAtLocation) => {
+				const [firstPractice] = practicesAtLocation;
+				if (!firstPractice) return;
 
 				const markerClone = markerTemplate.content.cloneNode(true) as DocumentFragment;
 				const markerNode = markerClone.firstElementChild as HTMLElement;
 				const innerPill = markerNode.querySelector('.inner-pill') as HTMLElement;
 				const priceDisplay = markerNode.querySelector('.price-display') as HTMLElement;
+				const hasRestricted = practicesAtLocation.some((practice) => probablyRestricted(practice.price, age));
+				const hasActivePractice = practicesAtLocation.some((practice) => practice.active);
 
-				priceDisplay.textContent = getMarkerPriceDisplay(practice.price);
-				innerPill.classList.add(practice.active ? 'bg-[#28A15D]' : 'bg-gray-500');
+				priceDisplay.textContent =
+					practicesAtLocation.length > 1
+						? `${practicesAtLocation.length} options`
+						: getMarkerPriceDisplay(firstPractice.price);
 
-				const marker = new mapboxgl.Marker(markerNode).setLngLat([practice.lng, practice.lat]).addTo(this.map);
+				const popupColor = hasRestricted ? 'bg-orange-600' : !hasActivePractice ? 'bg-gray-500' : 'bg-[#28A15D]';
+				innerPill.classList.add(popupColor);
+
+				const marker = new mapboxgl.Marker(markerNode)
+					.setLngLat([firstPractice.lng, firstPractice.lat])
+					.addTo(this.map);
+
+				for (const practice of practicesAtLocation) {
+					this.popupNodeMap.set(practice.id, this.buildPracticePopupNode(practice, age));
+					this.markersMap.set(practice.id, marker);
+				}
 
 				markerNode.addEventListener('click', (e) => {
 					e.stopPropagation();
-					selectedPracticeId.set(practice.id);
+
+					if (practicesAtLocation.length === 1) {
+						selectedPracticeId.set(practicesAtLocation[0].id);
+						return;
+					}
+
+					selectedPracticeId.set(null);
+
+					if (this.activePopup) {
+						const groupedPopupNode = this.buildGroupedPopupNode(practicesAtLocation);
+						this.activePopup.setLngLat(marker.getLngLat()).setDOMContent(groupedPopupNode).addTo(this.map);
+					}
+
+					marker.getElement().classList.remove('z-10');
+					marker.getElement().classList.add('z-20');
+
+					const markerPill = marker.getElement().firstElementChild;
+					if (markerPill) {
+						markerPill.classList.add('scale-125', 'shadow-xl');
+					}
 				});
 
-				this.markersMap.set(practice.id, marker);
 				this.markers.push(marker);
-				bounds.extend([practice.lng, practice.lat]);
+				bounds.extend([firstPractice.lng, firstPractice.lat]);
 				addedMarkers++;
 			});
 

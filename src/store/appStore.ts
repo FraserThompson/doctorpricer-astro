@@ -16,6 +16,29 @@ export interface SearchState {
 export const selectedPracticeId = atom<string | null>(null);
 export const searchStore = atom<SearchState>({ radius: "2000" });
 
+const syncResultUrlFromState = (state: SearchState): void => {
+	if (typeof window === 'undefined') return;
+	if (window.location.pathname !== '/result') return;
+	if (typeof state.lat !== 'number' || typeof state.lng !== 'number' || typeof state.age !== 'number') return;
+
+	const queryParams = new URLSearchParams({
+		lat: state.lat.toString(),
+		lng: state.lng.toString(),
+		age: state.age.toString(),
+		csc: state.csc ? '1' : '0',
+		address: state.address || '',
+		displayAddress: state.displayAddress || '',
+		active: state.onlyEnrolling ? '1' : '0',
+	});
+
+	window.history.replaceState({}, '', `/result?${queryParams.toString()}`);
+};
+
+export const setSearchState = (state: SearchState): void => {
+	searchStore.set(state);
+	syncResultUrlFromState(state);
+};
+
 export const practicesStore = atom<RadiusBucket[]>([]);
 
 export const filteredPracticesStore = computed(

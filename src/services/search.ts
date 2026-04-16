@@ -1,6 +1,6 @@
 /// <reference types="google.maps" />
 
-import { searchStore } from '../store/appStore';
+import { setSearchState } from '../store/appStore';
 
 declare global {
 	interface Window {
@@ -27,7 +27,7 @@ export const initializeSearch = async (
 
 	// If we already have the address, update the store immediately
 	if (address && displayAddress) {
-		searchStore.set({
+		setSearchState({
 			lat: parsedLat,
 			lng: parsedLng,
 			age,
@@ -66,7 +66,7 @@ export const initializeSearch = async (
 						shortAddress = `${results[0].address_components[0].short_name} ${results[0].address_components[1].short_name}`;
 					}
 
-					searchStore.set({
+					setSearchState({
 						lat: parsedLat,
 						lng: parsedLng,
 						age,

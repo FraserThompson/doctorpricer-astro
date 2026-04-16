@@ -56,7 +56,16 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 		<ul id="practice-list" class="overflow-y-auto h-full flex-1"></ul>
 
 		<div class="shrink-0 border-t border-gray-200 bg-gray-50 px-3 py-1 text-center text-[11px] leading-tight text-gray-500">
-			Prices are for enrolled patients only
+			Prices are for{' '}
+			<a
+				href="https://www.healthnz.govt.nz/hospitals-services/services-support/general-practices"
+				title="Information about General Practices at Health New Zealand"
+				class="text-[#337ab7] hover:underline hover:text-[#23527c]"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				enrolled patients only
+			</a>
 		</div>
 	</div>
 </practice-sidebar>
@@ -67,7 +76,7 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 
 <script>
 	import Hammer from 'hammerjs';
-	import { filteredPracticesStore, searchStore, selectedPracticeId } from '../store/appStore';
+	import { filteredPracticesStore, searchStore, selectedPracticeId, setSearchState } from '../store/appStore';
 	import { getSidebarPriceDisplay, probablyRestricted } from '../services/practiceDisplay';
 	import type { Practice } from '../schema';
 
@@ -103,14 +112,14 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 				const target = e.target as HTMLInputElement;
 				const currentSearch = searchStore.get();
 				if (!currentSearch) return;
-				searchStore.set({ ...currentSearch, onlyEnrolling: target.checked });
+				setSearchState({ ...currentSearch, onlyEnrolling: target.checked });
 			});
 
 			this.radiusSelect?.addEventListener('change', (e) => {
 				const target = e.target as HTMLSelectElement;
 				const currentSearch = searchStore.get();
 				if (!currentSearch) return;
-				searchStore.set({ ...currentSearch, radius: target.value });
+				setSearchState({ ...currentSearch, radius: target.value });
 			});
 
 			// Update on search

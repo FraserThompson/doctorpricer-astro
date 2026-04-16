@@ -1,4 +1,4 @@
-import type { AgeStat, PracticeSummary, ServerPractice } from '../../schema';
+import type { AgeStat, PracticeSummary, ServerPractice, Stats } from '../../schema';
 import type { BackendEnv } from '../env';
 import { jsonResponse } from '../http';
 import { getApplicablePrice } from './practices';
@@ -10,7 +10,11 @@ export async function handleStats(env: BackendEnv): Promise<Response> {
 	if (!practicesStr) return jsonResponse({}, 200);
 	const practices: ServerPractice[] = JSON.parse(practicesStr);
 
-	const result: Record<number, AgeStat> = {};
+	const result: Stats = {
+		'total': practices.length,
+		'enrolling': practices.filter((p) => p.active).length,
+		'prices': {}
+	};
 
 	for (const age of STAT_AGES) {
 		const priced: PracticeSummary[] = practices.map((p) => ({
@@ -26,7 +30,7 @@ export async function handleStats(env: BackendEnv): Promise<Response> {
 		const sorted = [...priced].sort((a, b) => a.price - b.price);
 		const mostExpensive = sorted[sorted.length - 1];
 
-		result[age] = { averagePrice, mostExpensive };
+		result['prices'][age] = { averagePrice, mostExpensive };
 	}
 
 	return jsonResponse(result, 200);

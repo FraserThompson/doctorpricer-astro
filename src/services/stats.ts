@@ -1,4 +1,4 @@
-import type { AgeStat } from '../schema';
+import type { AgeStat, Stats } from '../schema';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || '';
 
@@ -7,7 +7,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || '';
  *
  * @returns object with ages and stats about that age.
  */
-export const fetchStats = async (): Promise<Record<number, AgeStat>> => {
+export const fetchStats = async (): Promise<Stats> => {
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -18,7 +18,7 @@ export const fetchStats = async (): Promise<Record<number, AgeStat>> => {
 
 		if (!response.ok) throw new Error("API response was not ok");
 
-		const data: Record<number, AgeStat> = await response.json();
+		const data: Stats = await response.json();
 
 		return data;
 

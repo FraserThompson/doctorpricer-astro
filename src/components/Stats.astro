@@ -5,6 +5,9 @@
 <div id="stats-container">
 	<div id="stats-loading" class="py-8 text-center text-gray-500 text-sm">Loading stats...</div>
 
+	<div><strong class="total-count"></strong> practices</div>
+	<div><strong class="enrolling-count"></strong> enrolling</div>
+
 	<table id="stats-table" class="hidden w-full text-sm border-collapse">
 		<thead>
 			<tr class="bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -52,12 +55,19 @@
 		const table = document.getElementById('stats-table')!;
 		const tbody = document.getElementById('stats-body')!;
 		const error = document.getElementById('stats-error')!;
+		const totalCount = document.querySelector('.total-count')!;
+		const enrollingcount = document.querySelector('.enrolling-count')!;
 		const rowTemplate = document.getElementById('stats-row-template') as HTMLTemplateElement;
 
 		try {
 			const stats = await fetchStats();
 
-			const ages = Object.keys(stats)
+			totalCount.innerHTML = stats.total.toString();
+			enrollingcount.innerHTML = stats.enrolling.toString();
+
+			const priceStats = stats.prices;
+
+			const ages = Object.keys(priceStats)
 				.map(Number)
 				.sort((a, b) => a - b);
 
@@ -65,7 +75,7 @@
 			const fragment = document.createDocumentFragment();
 
 			for (const age of ages) {
-				const stat = stats[age];
+				const stat = priceStats[age];
 				const label = AGE_LABELS[age] ?? `${age}+`;
 				const avg = formatCurrency(stat.averagePrice);
 				const expName = stat.mostExpensive?.name ?? '—';
@@ -88,7 +98,8 @@
 
 			loading.classList.add('hidden');
 			table.classList.remove('hidden');
-		} catch {
+		} catch (e) {
+			console.log(e);
 			loading.classList.add('hidden');
 			error.classList.remove('hidden');
 		}

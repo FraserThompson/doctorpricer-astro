@@ -38,6 +38,7 @@ export interface RadiusBucket {
 	practices: Practice[];
 }
 
+// For the stats display
 export interface PracticeSummary {
 	id: string;
 	name: string;
@@ -48,4 +49,10 @@ export interface PracticeSummary {
 export interface AgeStat {
 	averagePrice: number;
 	mostExpensive: PracticeSummary;
+}
+
+export interface Stats {
+	prices:  Record<number, AgeStat>;
+	enrolling: number;
+	total: number;
 }

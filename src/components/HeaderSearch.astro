@@ -68,7 +68,7 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 </header-search>
 
 <script>
-	import { searchStore } from '../store/appStore';
+	import { searchStore, setSearchState } from '../store/appStore';
 	import { fetchPractices } from '../services/practices';
 	import { resolveSearchLocation, type PlaceSelection } from '../services/placeSelection';
 
@@ -119,10 +119,11 @@ import GoogleAutocomplete from './GoogleAutocomplete.astro';
 				}
 
 				const { lat, lng, address, displayAddress } = location;
+				const onlyEnrolling = !!currentSearch.onlyEnrolling;
 
 				// Update all keys in the store
-				searchStore.set({ ...currentSearch, lat, lng, age, csc, address, displayAddress });
-				await fetchPractices(lat, lng, age, csc ? 1 : 0, 0);
+				setSearchState({ ...currentSearch, lat, lng, age, csc, address, displayAddress, onlyEnrolling });
+				await fetchPractices(lat, lng, age, csc ? 1 : 0, onlyEnrolling ? 1 : 0);
 
 				this.activePlace = null;
 				modal.close();
