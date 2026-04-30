@@ -6,6 +6,28 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 ---
 
 <practice-sidebar class="contents">
+	<!-- Floating map controls - mobile only -->
+	<div
+		id="mobile-map-controls"
+		class="md:hidden fixed top-15 right-14 z-30 flex items-center gap-2 bg-white rounded-lg shadow-lg px-2.5 py-1.5"
+	>
+		<div class="flex items-center space-x-1">
+			<input type="checkbox" id="mobile-enrolling-filter" name="mobile-enrolling-filter" class="w-4 h-4 text-[#337ab7]" />
+			<label for="mobile-enrolling-filter" class="text-sm text-gray-600 whitespace-nowrap">Enrolling</label>
+		</div>
+		<label for="mobile-radius-select" class="sr-only">Distance</label>
+		<select
+			id="mobile-radius-select"
+			class="bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-2 focus:ring-[#337ab7] focus:border-[#337ab7] block py-1 px-2 transition-colors cursor-pointer shadow-sm"
+		>
+			<option value="2000" selected>2km</option>
+			<option value="5000">5km</option>
+			<option value="10000">10km</option>
+			<option value="30000">30km</option>
+			<option value="60000">60km</option>
+		</select>
+	</div>
+
 	<button
 		id="sidebar-toggle"
 		class="md:hidden fixed top-15 left-4 z-30 p-2.5 bg-white rounded-lg shadow-lg text-gray-700 hover:text-[#337ab7] transition-colors"
@@ -89,6 +111,8 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 		private cscSpan: HTMLSpanElement | null = null;
 		private radiusSelect: HTMLSelectElement | null = null;
 		private enrollingFilter: HTMLInputElement | null = null;
+		private mobileRadiusSelect: HTMLSelectElement | null = null;
+		private mobileEnrollingFilter: HTMLInputElement | null = null;
 		private reportModal: (HTMLElement & { openForPractice?: (practice: Practice) => void }) | null = null;
 		private isOpen: boolean = false;
 
@@ -101,6 +125,8 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 			this.cscSpan = this.querySelector('#csc-indicator');
 			this.radiusSelect = this.querySelector('#radius-select') as HTMLSelectElement | null;
 			this.enrollingFilter = this.querySelector('#enrolling-filter') as HTMLInputElement | null;
+			this.mobileRadiusSelect = this.querySelector('#mobile-radius-select') as HTMLSelectElement | null;
+			this.mobileEnrollingFilter = this.querySelector('#mobile-enrolling-filter') as HTMLInputElement | null;
 			this.reportModal = document.querySelector('practice-report-modal') as HTMLElement | null;
 
 			// Mobile Menu Toggle Logic
@@ -108,26 +134,33 @@ import PracticeSidebarItem from './PracticeSidebarItem.astro';
 			this.closeBtn?.addEventListener('click', () => this.closeSidebar());
 
 			// Filter Logic
-			this.enrollingFilter?.addEventListener('click', (e) => {
-				const target = e.target as HTMLInputElement;
+			const handleEnrollingChange = (checked: boolean) => {
 				const currentSearch = searchStore.get();
 				if (!currentSearch) return;
-				setSearchState({ ...currentSearch, onlyEnrolling: target.checked });
-			});
+				setSearchState({ ...currentSearch, onlyEnrolling: checked });
+			};
 
-			this.radiusSelect?.addEventListener('change', (e) => {
-				const target = e.target as HTMLSelectElement;
+			const handleRadiusChange = (value: string) => {
 				const currentSearch = searchStore.get();
 				if (!currentSearch) return;
-				setSearchState({ ...currentSearch, radius: target.value });
-			});
+				setSearchState({ ...currentSearch, radius: value });
+			};
+
+			this.enrollingFilter?.addEventListener('click', (e) => handleEnrollingChange((e.target as HTMLInputElement).checked));
+			this.mobileEnrollingFilter?.addEventListener('click', (e) => handleEnrollingChange((e.target as HTMLInputElement).checked));
+
+			this.radiusSelect?.addEventListener('change', (e) => handleRadiusChange((e.target as HTMLSelectElement).value));
+			this.mobileRadiusSelect?.addEventListener('change', (e) => handleRadiusChange((e.target as HTMLSelectElement).value));
 
 			// Update on search
 			searchStore.subscribe((state) => {
 				if (!state) return;
-				if (state.radius && state.radius !== '0' && this.radiusSelect) {
-					this.radiusSelect.value = state.radius;
+				if (state.radius && state.radius !== '0') {
+					if (this.radiusSelect) this.radiusSelect.value = state.radius;
+					if (this.mobileRadiusSelect) this.mobileRadiusSelect.value = state.radius;
 				}
+				if (this.mobileEnrollingFilter) this.mobileEnrollingFilter.checked = !!state.onlyEnrolling;
+				if (this.enrollingFilter) this.enrollingFilter.checked = !!state.onlyEnrolling;
 				if (state.csc) {
 					this.cscSpan?.classList.remove('hidden');
 				} else {
